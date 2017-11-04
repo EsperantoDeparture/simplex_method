@@ -1,18 +1,20 @@
+import math
+
+from antlr4 import CommonTokenStream
+from antlr4.FileStream import InputStream
 from kivy.app import App
+from kivy.core.window import Window
+from kivy.graphics import Color, Rectangle
+from kivy.uix.button import Button
+from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
-from kivy.uix.button import Button
-from kivy.uix.textinput import TextInput
-from kivy.uix.dropdown import DropDown
 from kivy.uix.scrollview import ScrollView
+from kivy.uix.textinput import TextInput
+
 from mLexer import mLexer
 from mParser import mParser
 from mVisitor import mVisitor
-from antlr4 import CommonTokenStream
-from antlr4.FileStream import InputStream
-from kivy.graphics import Color, Rectangle
-from kivy.core.window import Window
-import math
 
 
 class OutputTable(GridLayout):
@@ -94,23 +96,30 @@ class OutputTable(GridLayout):
             self.background = Rectangle(
                 pos=(self.x, self.height * (self.number_of_iterations - self.iteration - 1)),
                 size=self.size)
-            # Leaving variable's row
-            Color(*self.highlight)
-            self.leaving_variable_row_background = Rectangle(
-                pos=(200, self.height * (self.number_of_iterations - self.iteration - 1) + 30 * (
-                    self.constraints - self.leaving_variable)),
-                size=(self.variables * 200, 30))
-            # Entering variable's column
-            Color(*self.highlight)
-            self.entering_variable_row_background = Rectangle(pos=(
-                200 + self.entering_variable * 200, 30 + self.height * (self.number_of_iterations - self.iteration - 1)),
-                size=(200, self.constraints * 30))
-            # Pivot
-            Color(*self.pivot)
-            self.pivot_background = Rectangle(
-                pos=(200 + 200 * self.entering_variable,
-                     self.height * (self.number_of_iterations - self.iteration - 1) + 30 * (self.constraints - self.leaving_variable)),
-                size=(200, 30))
+            if self.entering_variable is not None:
+                # Leaving variable's row
+                Color(*self.highlight)
+                self.leaving_variable_row_background = Rectangle(
+                    pos=(200, self.height * (self.number_of_iterations - self.iteration - 1) + 30 * (
+                        self.constraints - self.leaving_variable)),
+                    size=(self.variables * 200, 30))
+                # Entering variable's column
+                Color(*self.highlight)
+                self.entering_variable_row_background = Rectangle(pos=(
+                    200 + self.entering_variable * 200,
+                    30 + self.height * (self.number_of_iterations - self.iteration - 1)),
+                    size=(200, self.constraints * 30))
+                # Pivot
+                Color(*self.pivot)
+                self.pivot_background = Rectangle(
+                    pos=(200 + 200 * self.entering_variable,
+                         self.height * (self.number_of_iterations - self.iteration - 1) + 30 * (
+                             self.constraints - self.leaving_variable)),
+                    size=(200, 30))
+            else:
+                Color(*self.pivot)
+                self.pivot_background = Rectangle(pos=(200 + 200 * self.variables, 30 + 30 * self.constraints),
+                                                  size=(200, 30))
 
 
 class Constraint(GridLayout):
@@ -334,7 +343,7 @@ class Gui(GridLayout):
         # Now it's time to iterate until the job is done
         end = False
         special = False
-        output_table = []
+        output_tables = []
         while not end:
             # reset z to zeroes
             zj = ["0.0" for x in range(variables + gt_constraints * 2 + eq_constraints + lt_constraints + 1)]
@@ -354,61 +363,6 @@ class Gui(GridLayout):
                 new_cj_minus_zj = self.parse_m(cj[i] + "-(" + zj[i] + ")")
                 cj_minus_zj[i] = new_cj_minus_zj["rhs"] + ("+" if "-" not in new_cj_minus_zj["m_coefficient"] else "") + \
                                  new_cj_minus_zj["m_coefficient"] + "m"
-
-            # Find the entering variable
-            entering_variable = cj_minus_zj[0]  # min or max cj-zj (depending on the problem)
-            entering_variable_index = 0  # index of the entering variable
-            operator = "<" if problem_type == "Maximize" else ">"
-            for i in range(len(cj_minus_zj)):
-                if self.parse_m(entering_variable + operator + cj_minus_zj[i]):
-                    entering_variable = cj_minus_zj[i]
-                    entering_variable_index = i
-
-            # Find the leaving variable
-            min_ratio = math.inf
-            leaving_variable_index = None
-            for i in range(len(b)):
-                if a[i][entering_variable_index] > 0:
-                    if min_ratio > b[i] / a[i][entering_variable_index]:
-                        min_ratio = b[i] / a[i][entering_variable_index]
-                        leaving_variable_index = i
-            # 2. Unbounded solution
-            if leaving_variable_index is None:
-                special = True
-
-            # get the pivot
-            pivot = a[leaving_variable_index][entering_variable_index]
-
-            # do the pivoting operations
-            # First we divide the row of the pivot by the pivot
-            output_table.append(
-                OutputTable(iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj, entering_variable_index,
-                 leaving_variable_index, a, 0, size_hint=(None, None), width=Window.width))
-
-            # Then we pivot
-            for i in range(len(a)):
-                # update the bi's
-                if i != leaving_variable_index:
-                    b[i] -= (a[i][entering_variable_index] * b[leaving_variable_index]) / pivot
-
-            b[leaving_variable_index] /= pivot
-            # the row and column of the pivot are left untouched
-            for i in range(len(a)):
-                for j in range(len(a[0])):
-                    if i != leaving_variable_index and j != entering_variable_index:
-                        a[i][j] -= (a[i][entering_variable_index] * a[leaving_variable_index][j]) / pivot
-
-            # Update the column of the pivot
-            for i in range(len(a)):
-                if i != leaving_variable_index:
-                    a[i][entering_variable_index] = 0
-
-            # Dividing the pivot's row by the pivot
-            a[leaving_variable_index] = [x / pivot for x in a[leaving_variable_index]]
-
-            # Update basic variables list and cb
-            basic_vars[leaving_variable_index] = variable_names[entering_variable_index]
-            cb[leaving_variable_index] = cj[entering_variable_index]
 
             # check if we got to the end or we must stop (the problem is a special case)
             # Checking if we reached the stopping condition
@@ -440,6 +394,67 @@ class Gui(GridLayout):
                     if zj[x] == "0.0":
                         special = True
                         break
+
+                output_tables.append(
+                    OutputTable(iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj,
+                                None, None, a, 0, size_hint=(None, None), width=Window.width))
+                break
+
+            # Find the entering variable
+            entering_variable = cj_minus_zj[0]
+            entering_variable_index = 0  # index of the entering variable
+            operator = "<" if problem_type == "Maximize" else ">"
+            for i in range(len(cj_minus_zj)):
+                if self.parse_m(entering_variable + operator + cj_minus_zj[i]):
+                    entering_variable = cj_minus_zj[i]
+                    entering_variable_index = i
+
+            # Find the leaving variable
+            min_ratio = math.inf
+            leaving_variable_index = None
+            for i in range(len(b)):
+                if a[i][entering_variable_index] > 0:
+                    if min_ratio > b[i] / a[i][entering_variable_index]:
+                        min_ratio = b[i] / a[i][entering_variable_index]
+                        leaving_variable_index = i
+            # 2. Unbounded solution
+            if leaving_variable_index is None:
+                special = True
+
+            # get the pivot
+            pivot = a[leaving_variable_index][entering_variable_index]
+
+            # do the pivoting operations
+            # First we divide the row of the pivot by the pivot
+            output_tables.append(
+                OutputTable(iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj, entering_variable_index,
+                            leaving_variable_index, a, 0, size_hint=(None, None), width=Window.width))
+
+            # Then we pivot
+            for i in range(len(a)):
+                # update the bi's
+                if i != leaving_variable_index:
+                    b[i] -= (a[i][entering_variable_index] * b[leaving_variable_index]) / pivot
+
+            b[leaving_variable_index] /= pivot
+            # the row and column of the pivot are left untouched
+            for i in range(len(a)):
+                for j in range(len(a[0])):
+                    if i != leaving_variable_index and j != entering_variable_index:
+                        a[i][j] -= (a[i][entering_variable_index] * a[leaving_variable_index][j]) / pivot
+
+            # Update the column of the pivot
+            for i in range(len(a)):
+                if i != leaving_variable_index:
+                    a[i][entering_variable_index] = 0
+
+            # Dividing the pivot's row by the pivot
+            a[leaving_variable_index] = [x / pivot for x in a[leaving_variable_index]]
+
+            # Update basic variables list and cb
+            basic_vars[leaving_variable_index] = variable_names[entering_variable_index]
+            cb[leaving_variable_index] = cj[entering_variable_index]
+
             iteration += 1
         self.add_widget(Label(text="Final solution:", size_hint=(None, None), size=(100, 30)))
         self.add_widget(
@@ -452,9 +467,9 @@ class Gui(GridLayout):
                     Label(text=(x + " = " + str(b[basic_vars.index(x)])), size_hint=(None, None), size=(250, 30)))
             else:
                 self.add_widget(Label(text=(x + " = 0.0"), size_hint=(None, None), size=(250, 30)))
-        for i in range(len(output_table)):
-            output_table[i].number_of_iterations = len(output_table)
-            self.add_widget(output_table[i])
+        for i in range(len(output_tables)):
+            output_tables[i].number_of_iterations = len(output_tables)
+            self.add_widget(output_tables[i])
 
     @classmethod
     def parse_m(cls, m_expression):
