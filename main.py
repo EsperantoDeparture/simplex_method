@@ -148,7 +148,7 @@ class Constraint(GridLayout):
         self.add_widget(self.open_type)
 
         self.rhs = TextInput(multiline=False,
-                             size_hint=(None, None), size=(100, 30))  # , size_hint=(None, None), height=30)
+                             size_hint=(None, None), size=(100, 30))
         self.add_widget(self.rhs)
 
     def get_coefficients(self):
@@ -203,14 +203,27 @@ class Gui(GridLayout):
         # How many variables has the problem?
         self.add_widget(
             Label(text="How many decision variables has the problem?", size_hint=(None, None), size=(400, 30)))
-        self.number_of_variables = TextInput(size_hint=(None, None), size=(300, 30))
+        self.number_of_variables = TextInput(size_hint=(None, None), size=(400, 30))
         self.add_widget(self.number_of_variables)
 
         # How many constraints?
         self.add_widget(
             Label(text="How many restrictions?"))
-        self.number_of_constraints = TextInput(size_hint=(None, None), size=(300, 30))
+        self.number_of_constraints = TextInput(size_hint=(None, None), size=(400, 30))
         self.add_widget(self.number_of_constraints)
+
+        # Type of the problem
+        self.problem_nature = DropDown()
+        for x in ["Linear Programming", "Integer Linear Programming"]:
+            btn = Button(text=x, size_hint_y=None, height=44)
+            btn.bind(on_release=lambda btn: self.problem_nature.select(btn.text))
+            self.problem_nature.add_widget(btn)
+        self.open_problem_nature = Button(text="Linear Programming", size_hint=(None, None), size=(400, 30))
+        self.open_problem_nature.bind(on_release=self.problem_nature.open)
+        self.problem_nature.bind(on_select=lambda instance, x: setattr(self.open_problem_nature, "text", x))
+
+        self.add_widget(Label(text="Type of the problem:", size_hint=(None, None), size=(400, 30)))
+        self.add_widget(self.open_problem_nature)
 
         self.submit = Button(text="Continue", size_hint=(None, None), size=(400, 30))
         self.submit.bind(on_press=self.gen_input_table)
@@ -218,7 +231,7 @@ class Gui(GridLayout):
 
         self.fo = None
         self.type = None
-        self.open_type = None
+        self.open_problem_type = None
         self.constraints = []
         self.constraints_types = []
 
@@ -233,11 +246,11 @@ class Gui(GridLayout):
             btn = Button(text=x, size_hint_y=None, height=44)
             btn.bind(on_release=lambda btn: self.type.select(btn.text))
             self.type.add_widget(btn)
-        self.open_type = Button(text="Maximize", size_hint=(None, None), size=(100, 44))
-        self.open_type.bind(on_release=self.type.open)
-        self.type.bind(on_select=lambda instance, x: setattr(self.open_type, "text", x))
+        self.open_problem_type = Button(text="Maximize", size_hint=(None, None), size=(100, 44))
+        self.open_problem_type.bind(on_release=self.type.open)
+        self.type.bind(on_select=lambda instance, x: setattr(self.open_problem_type, "text", x))
 
-        self.add_widget(self.open_type)
+        self.add_widget(self.open_problem_type)
 
         self.fo = GridLayout(cols=(variables + 1), padding=10, spacing=10,
                              size_hint=(None, None), width=Window.width)
@@ -262,15 +275,16 @@ class Gui(GridLayout):
             self.add_widget(self.constraints[i - 1])
 
         self.submit = Button(size_hint=(None, None), size=(400, 30))
-        self.submit.bind(on_press=self.big_m)
+        self.submit.bind(on_press=self.solve)
         self.submit.text = "Continue"
         self.add_widget(self.submit)
 
-    def big_m(self, e):
+    def solve(self, e):
         variables = int(self.number_of_variables.text)
         constraints = int(self.number_of_constraints.text)
         self.clear_widgets()
-        problem_type = self.open_type.text
+        problem_type = self.open_problem_type.text
+        problem_nature = self.open_problem_nature.text
         # Coefficients of the objective function
         cj = [str(x.get()) for x in
               filter(lambda y: type(y) == Variable, self.fo.children)]
@@ -280,7 +294,48 @@ class Gui(GridLayout):
         constraint_types = [x.get_type() for x in self.constraints]
         variable_names = ["x" + str(i) for i in range(1, variables + 1)]
         iteration = 0
+        if problem_nature == "Linear Programming":
+            s = Simplex(variables, constraints, cj, a, b, constraint_types, variable_names, problem_type)
+            output_tables, solution, basic_vars = s.solve()
+            self.add_widget(Label(text="Final solution:", size_hint=(None, None), size=(100, 30)))
+            self.add_widget(
+                Label(text=(("Zmax = " if problem_type == "Maximize" else "Zmin = ") + str(solution[0])),
+                      size_hint=(None, None),
+                      size=(250, 30)))
+            basic_vars = [(x[:-1] + "x" if x[-1] == "h" else x) for x in basic_vars]
+            for i in range(1, len(solution)):
+                self.add_widget(Label(text=("x" + str(i) + " = " + str(solution[i])), size_hint=(None, None),
+                                      size=(250, 30)))
+            for i in range(len(output_tables)):
+                self.add_widget(output_tables[i])
+        else:  # Integer linear programming
+            print("This option is a WIP")
+
+
+class Simplex:
+    def __init__(self, number_of_variables=None, number_of_constraints=None, cj=None, a=None, b=None,
+                 constraint_types=None, variable_names=None, problem_type=None):
+        self.solved = False
+        self.number_of_variables = number_of_variables
+        self.number_of_constraints = number_of_constraints
+        self.cj = cj
+        self.a = a
+        self.b = b
+        self.constraint_types = constraint_types
+        self.variable_names = variable_names
+        self.problem_type = problem_type
+
+    def solve(self):
+        variables = self.number_of_variables
+        constraints = self.number_of_constraints
+        cj = self.cj[:]
+        a = [x[:] for x in self.a]
+        b = self.b[:]
+        constraint_types = self.constraint_types
+        variable_names = self.variable_names
+        problem_type = self.problem_type
         # Let's create the initial optimal solution
+        iteration = 0
         for i in range(constraints):
             if constraint_types[i] == ">=":
                 _type = 0
@@ -344,6 +399,7 @@ class Gui(GridLayout):
         end = False
         special = False
         output_tables = []
+        solution = []
         while not end:
             # reset z to zeroes
             zj = ["0.0" for x in range(variables + gt_constraints * 2 + eq_constraints + lt_constraints + 1)]
@@ -456,20 +512,19 @@ class Gui(GridLayout):
             cb[leaving_variable_index] = cj[entering_variable_index]
 
             iteration += 1
-        self.add_widget(Label(text="Final solution:", size_hint=(None, None), size=(100, 30)))
-        self.add_widget(
-            Label(text=(("Zmax = " if problem_type == "Maximize" else "Zmin = ") + zj[-1]), size_hint=(None, None),
-                  size=(250, 30)))
-        basic_vars = [(x[:-1] + "x" if x[-1] == "h" else x) for x in basic_vars]
+        solution.append(zj[-1])
+        # basic_vars = [(x[:-1] + "x" if x[-1] == "h" else x) for x in basic_vars] I forgot to remove this...
         for x in variable_names[:variables]:
             if x in basic_vars:
-                self.add_widget(
-                    Label(text=(x + " = " + str(b[basic_vars.index(x)])), size_hint=(None, None), size=(250, 30)))
+                solution.append(b[basic_vars.index(x)])
             else:
-                self.add_widget(Label(text=(x + " = 0.0"), size_hint=(None, None), size=(250, 30)))
+                solution.append(0.0)
         for i in range(len(output_tables)):
             output_tables[i].number_of_iterations = len(output_tables)
-            self.add_widget(output_tables[i])
+        return output_tables, solution, basic_vars
+
+    def add_constraint(self):
+        self.solved = False
 
     @classmethod
     def parse_m(cls, m_expression):
@@ -481,15 +536,30 @@ class Gui(GridLayout):
         visitor = mVisitor()
         return visitor.visit(tree)
 
+    @classmethod
+    def from_simplex(cls, s):
+        new_simplex = Simplex()
+        new_simplex.solved = s.solved
+        new_simplex.number_of_variables = s.number_of_variables
+        new_simplex.number_of_constraints = s.number_of_constraints
+        new_simplex.cj = s.cj[:]
+        new_simplex.a = [x[:] for x in s.a]
+        new_simplex.b = s.b[:]
+        new_simplex.constraint_types = s.constraint_types[:]
+        new_simplex.variable_names = s.variable_names[:]
+        return new_simplex
 
-class Simplex(App):
+
+class SimplexApp(App):
     def build(self):
         gui = Gui(cols=2,
                   size_hint=(None, None), width=Window.width)
         scroll_view = ScrollView(size_hint=(None, None), size=(Window.width, Window.height), do_scroll_x=True)
+        Window.bind(width=scroll_view.setter('width'))
+        Window.bind(height=scroll_view.setter('height'))
         scroll_view.add_widget(gui)
         return scroll_view
 
 
 if __name__ == '__main__':
-    Simplex().run()
+    SimplexApp().run()
