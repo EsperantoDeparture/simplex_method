@@ -371,7 +371,8 @@ class Gui(GridLayout):
 
             # It's time to print the tree to the gui
             text_height = 30 * variables + 30
-            text_width = 150
+            text_width = 200
+            sibling_spacing = len(problems[-1])
             layout = FloatLayout(size_hint=(None, None), size=(
                 text_width * len(problems[-1]) + text_width, text_height * len(problems) + text_height))
             for i in range(len(problems) - 1):
@@ -388,21 +389,21 @@ class Gui(GridLayout):
 
                         layout.add_widget(Label(text=text,
                                                 pos=(
-                                                    ((text_width / 3 * j * (len(problems[-1])) /
-                                                      len(problems[i])) + text_width / 3 * (
+                                                    ((sibling_spacing * j * (len(problems[-1])) /
+                                                      len(problems[i])) + sibling_spacing * (
                                                          len(problems[-1]) / (2 ** (i + 1)))),
                                                     text_height * (len(problems) - i)),
                                                 size=(text_width, text_height), size_hint=(None, None)))
                         if i != 0:
                             with self.canvas.before:
                                 Line(points=(
-                                    ((text_width / 3 * j * (len(problems[-1])) /
-                                      len(problems[i])) + text_width / 3 * (
+                                    ((sibling_spacing * j * (len(problems[-1])) /
+                                      len(problems[i])) + sibling_spacing * (
                                          len(problems[-1]) / (2 ** (i + 1)))) + text_width / 2,
                                     text_height * (len(problems) - i) + text_height / 1.5,
                                     text_width / 2 +
-                                    ((text_width / 3 * (j // 2) * (len(problems[-1])) /
-                                      len(problems[i - 1])) + text_width / 3 * (
+                                    ((sibling_spacing * (j // 2) * (len(problems[-1])) /
+                                      len(problems[i - 1])) + sibling_spacing * (
                                          len(problems[-1]) / (2 ** (i + 1 - 1)))), text_height * 1.35 +
                                     text_height * (len(problems) - i)), width=1)
             self.add_widget(layout)
