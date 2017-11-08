@@ -4,7 +4,7 @@ from antlr4 import CommonTokenStream
 from antlr4.FileStream import InputStream
 from kivy.app import App
 from kivy.core.window import Window
-from kivy.graphics import Color, Rectangle
+from kivy.graphics import Color, Rectangle, Line
 from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
@@ -385,15 +385,26 @@ class Gui(GridLayout):
                                     0]) + "\n"
                             for k in range(1, len(problems[i][j].solution)):
                                 text += "x" + str(k) + " = " + str(problems[i][j].solution[k]) + "\n"
-                    else:
-                        text = ""
-                    layout.add_widget(Label(text=text,
-                                            pos=(
-                                                ((text_width * j * (len(problems[-1])) /
-                                                  len(problems[i])) + text_width * (
-                                                     len(problems[-1]) / (2 ** (i + 1)))),
-                                                text_height * (len(problems) - i)),
-                                            size=(text_width, text_height), size_hint=(None, None)))
+
+                        layout.add_widget(Label(text=text,
+                                                pos=(
+                                                    ((text_width * j * (len(problems[-1])) /
+                                                      len(problems[i])) + text_width * (
+                                                         len(problems[-1]) / (2 ** (i + 1)))),
+                                                    text_height * (len(problems) - i)),
+                                                size=(text_width, text_height), size_hint=(None, None)))
+                        if i != 0:
+                            with self.canvas.before:
+                                Line(points=(
+                                    ((text_width * j * (len(problems[-1])) /
+                                      len(problems[i])) + text_width * (
+                                         len(problems[-1]) / (2 ** (i + 1)))) + text_width / 2,
+                                    text_height * (len(problems) - i) + text_height / 1.5,
+                                    text_width / 2 +
+                                    ((text_width * (j // 2) * (len(problems[-1])) /
+                                      len(problems[i - 1])) + text_width * (
+                                         len(problems[-1]) / (2 ** (i + 1 - 1)))), text_height * 1.35 +
+                                    text_height * (len(problems) - i)), width=1)
             self.add_widget(layout)
 
 

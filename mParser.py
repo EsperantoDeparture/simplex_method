@@ -1,4 +1,4 @@
-# Generated from /home/zetsubou/Projects/Python/metodo simplex kivy/m.g4 by ANTLR 4.7
+# Generated from /home/zetsubou/Projects/Python/Simplex method/m.g4 by ANTLR 4.7
 # encoding: utf-8
 from antlr4 import *
 from io import StringIO

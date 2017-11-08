@@ -20,7 +20,7 @@ start_rule: expression;
 
 INT: ('0' .. '9')+;
 
-FLOAT: ('0' .. '9')+ '.' ('0' .. '9')+;
+FLOAT: INT '.' (INT| INT ('E'|'e') SUB? INT);
 
 GT: '>';
 
