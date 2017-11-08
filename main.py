@@ -8,9 +8,11 @@ from kivy.graphics import Color, Rectangle
 from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
+from kivy.uix.checkbox import CheckBox
 
 from mLexer import mLexer
 from mParser import mParser
@@ -232,6 +234,7 @@ class Gui(GridLayout):
         self.fo = None
         self.type = None
         self.open_problem_type = None
+        self.integer_check = []
         self.constraints = []
         self.constraints_types = []
 
@@ -274,6 +277,18 @@ class Gui(GridLayout):
                                                size_hint=(None, None), width=Window.width))
             self.add_widget(self.constraints[i - 1])
 
+        self.integer_check = []
+        if self.open_problem_nature.text == "Integer Linear Programming":
+            self.add_widget(
+                Label(text="The following variables must be integers:", size_hint=(None, None), size=(400, 30)))
+            for i in range(variables):
+                new_container = GridLayout(cols=2, size_hint=(None, None), width=125)
+                new_container.add_widget(Label(text=("x" + str(i)), size=(100, 30)))
+                new_check_box = CheckBox()
+                self.integer_check.append(new_check_box)
+                new_container.add_widget(new_check_box)
+                self.add_widget(new_container)
+
         self.submit = Button(size_hint=(None, None), size=(400, 30))
         self.submit.bind(on_press=self.solve)
         self.submit.text = "Continue"
@@ -309,7 +324,90 @@ class Gui(GridLayout):
             for i in range(len(output_tables)):
                 self.add_widget(output_tables[i])
         else:  # Integer linear programming
-            print("This option is a WIP")
+            integer_check = [x.active for x in self.integer_check]
+            height = 0
+            # Initial problem
+            problems = [[Simplex(variables, constraints, cj[:], [x[:] for x in a], b[:], constraint_types[:],
+                                 variable_names, problem_type)]]
+            while True:
+                for x in problems[height]:
+                    if x is not None:
+                        x.solve()
+
+                problems.append([])
+                for i in range(len(problems[height])):
+                    if problems[height][i] is None:
+                        problems[height + 1].append(None)
+                        problems[height + 1].append(None)
+                    else:
+                        solution = problems[height][i].solution
+                        if solution is None:
+                            problems[height + 1].append(None)
+                            problems[height + 1].append(None)
+                        else:
+                            new_iter = False
+                            for k in range(1, len(solution)):
+                                if integer_check[k - 1] and not solution[k].is_integer():
+                                    new_iter = True
+                                    np1 = Simplex.from_simplex(problems[height][i]).add_constraint(
+                                        [0.0 for l in range(k - 1)] + [1.0] + [0.0 for l in
+                                                                               range(len(solution) - k - 1)],
+                                        "<=",
+                                        int(solution[k]))
+                                    np2 = Simplex.from_simplex(problems[height][i]).add_constraint(
+                                        [0.0 for l in range(k - 1)] + [1.0] + [0.0 for l in
+                                                                               range(len(solution) - k - 1)],
+                                        ">=",
+                                        int(solution[k]) + 1)
+                                    problems[height + 1].append(np1)
+                                    problems[height + 1].append(np2)
+                                    break
+                            if not new_iter:
+                                problems[height + 1].append(None)
+                                problems[height + 1].append(None)
+                if not any(problems[height + 1]):
+                    break
+                height += 1
+            """  For debugging purposes... Comment this line to activate the console output
+            for i in range(len(problems)):
+                print("height ", i)
+                for j in range(len(problems[i])):
+                    if problems[i][j] is None:
+                        print("end_b")
+                    elif problems[i][j].solution is None:
+                        print("infeasible")
+                    else:
+                        print(problems[i][j].solution)  # """
+            # time to print the tree to the gui
+            text_height = 30 * variables + 30
+            text_width = 200
+            layout = FloatLayout(size_hint=(None, None), size=(
+                text_width * len(problems[-1]) + text_width, text_height * len(problems) + text_height))
+            for i in range(len(problems) - 1):
+                for j in range(len(problems[i])):
+                    print((
+                        (text_width * j * (len(problems[-1])) /
+                         len(problems[i])) + text_width * (
+                            len(problems[-1]) / (2 ** (i + 1))),
+                        text_height * (len(problems) - i)))
+                    if problems[i][j] is not None:
+                        if problems[i][j].solution is None:
+                            text = "infeasible"
+                        else:
+                            text = ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + problems[i][j].solution[
+                                0] + "\n"
+                            for k in range(1, len(problems[i][j].solution)):
+                                text += "x" + str(k) + " = " + str(problems[i][j].solution[k]) + "\n"
+                    else:
+                        text = ""
+                    layout.add_widget(Label(text=text,
+                                            pos=(
+                                                ((text_width * j * (len(problems[-1])) /
+                                                  len(problems[i])) + text_width * (
+                                                     len(problems[-1]) / (2 ** (i + 1)))),
+                                                text_height * (len(problems) - i)),
+                                            size=(text_width, text_height), size_hint=(None, None)))
+            self.add_widget(layout)
 
 
 class Simplex:
@@ -324,6 +422,8 @@ class Simplex:
         self.constraint_types = constraint_types
         self.variable_names = variable_names
         self.problem_type = problem_type
+        self.solution = None
+        self.output_tables = None
 
     def solve(self):
         variables = self.number_of_variables
@@ -331,8 +431,8 @@ class Simplex:
         cj = self.cj[:]
         a = [x[:] for x in self.a]
         b = self.b[:]
-        constraint_types = self.constraint_types
-        variable_names = self.variable_names
+        constraint_types = self.constraint_types[:]
+        variable_names = self.variable_names[:]
         problem_type = self.problem_type
         # Let's create the initial optimal solution
         iteration = 0
@@ -398,8 +498,8 @@ class Simplex:
         # Now it's time to iterate until the job is done
         end = False
         special = False
-        output_tables = []
-        solution = []
+        self.output_tables = []
+        self.solution = []
         while not end:
             # reset z to zeroes
             zj = ["0.0" for x in range(variables + gt_constraints * 2 + eq_constraints + lt_constraints + 1)]
@@ -437,8 +537,9 @@ class Simplex:
             if end:
                 # 1. No feasible region
                 for i in range(len(basic_vars)):
-                    if "a" in basic_vars[i] and self.parse_m(cb[i] + "> 0.0"):
+                    if "a" in basic_vars[i] and b[i] > 0.0:
                         special = True
+                        self.solution = None
                         break
                 # 3. Alternative solutions
                 non_basic_vars = []  # Not the actual names, just the index in variable_names
@@ -451,7 +552,7 @@ class Simplex:
                         special = True
                         break
 
-                output_tables.append(
+                self.output_tables.append(
                     OutputTable(iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj,
                                 None, None, a, 0, size_hint=(None, None), width=Window.width))
                 break
@@ -477,12 +578,11 @@ class Simplex:
             if leaving_variable_index is None:
                 special = True
 
-            # get the pivot
+            # Get the pivot
             pivot = a[leaving_variable_index][entering_variable_index]
 
-            # do the pivoting operations
-            # First we divide the row of the pivot by the pivot
-            output_tables.append(
+            # Get the new output table
+            self.output_tables.append(
                 OutputTable(iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj, entering_variable_index,
                             leaving_variable_index, a, 0, size_hint=(None, None), width=Window.width))
 
@@ -512,19 +612,24 @@ class Simplex:
             cb[leaving_variable_index] = cj[entering_variable_index]
 
             iteration += 1
-        solution.append(zj[-1])
-        # basic_vars = [(x[:-1] + "x" if x[-1] == "h" else x) for x in basic_vars] I forgot to remove this...
-        for x in variable_names[:variables]:
-            if x in basic_vars:
-                solution.append(b[basic_vars.index(x)])
-            else:
-                solution.append(0.0)
-        for i in range(len(output_tables)):
-            output_tables[i].number_of_iterations = len(output_tables)
-        return output_tables, solution, basic_vars
+        if self.solution is not None:
+            self.solution.append(zj[-1])
+            for x in variable_names[:variables]:
+                if x in basic_vars:
+                    self.solution.append(b[basic_vars.index(x)])
+                else:
+                    self.solution.append(0.0)
+            for i in range(len(self.output_tables)):
+                self.output_tables[i].number_of_iterations = len(self.output_tables)
+            return self.output_tables, self.solution, basic_vars
 
-    def add_constraint(self):
+    def add_constraint(self, coefficients, constraint_type, rhs):
         self.solved = False
+        self.b.append(rhs)
+        self.a.append(coefficients)
+        self.constraint_types.append(constraint_type)
+        self.number_of_constraints += 1
+        return self
 
     @classmethod
     def parse_m(cls, m_expression):
@@ -536,8 +641,8 @@ class Simplex:
         visitor = mVisitor()
         return visitor.visit(tree)
 
-    @classmethod
-    def from_simplex(cls, s):
+    @staticmethod
+    def from_simplex(s):
         new_simplex = Simplex()
         new_simplex.solved = s.solved
         new_simplex.number_of_variables = s.number_of_variables
@@ -547,6 +652,7 @@ class Simplex:
         new_simplex.b = s.b[:]
         new_simplex.constraint_types = s.constraint_types[:]
         new_simplex.variable_names = s.variable_names[:]
+        new_simplex.problem_type = s.problem_type
         return new_simplex
 
 
