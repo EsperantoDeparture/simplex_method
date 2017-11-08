@@ -388,21 +388,21 @@ class Gui(GridLayout):
 
                         layout.add_widget(Label(text=text,
                                                 pos=(
-                                                    ((text_width * j * (len(problems[-1])) /
-                                                      len(problems[i])) + text_width * (
+                                                    ((text_width / 3 * j * (len(problems[-1])) /
+                                                      len(problems[i])) + text_width / 3 * (
                                                          len(problems[-1]) / (2 ** (i + 1)))),
                                                     text_height * (len(problems) - i)),
                                                 size=(text_width, text_height), size_hint=(None, None)))
                         if i != 0:
                             with self.canvas.before:
                                 Line(points=(
-                                    ((text_width * j * (len(problems[-1])) /
-                                      len(problems[i])) + text_width * (
+                                    ((text_width / 3 * j * (len(problems[-1])) /
+                                      len(problems[i])) + text_width / 3 * (
                                          len(problems[-1]) / (2 ** (i + 1)))) + text_width / 2,
                                     text_height * (len(problems) - i) + text_height / 1.5,
                                     text_width / 2 +
-                                    ((text_width * (j // 2) * (len(problems[-1])) /
-                                      len(problems[i - 1])) + text_width * (
+                                    ((text_width / 3 * (j // 2) * (len(problems[-1])) /
+                                      len(problems[i - 1])) + text_width / 3 * (
                                          len(problems[-1]) / (2 ** (i + 1 - 1)))), text_height * 1.35 +
                                     text_height * (len(problems) - i)), width=1)
             self.add_widget(layout)
