@@ -368,34 +368,21 @@ class Gui(GridLayout):
                 if not any(problems[height + 1]):
                     break
                 height += 1
-            """  For debugging purposes... Comment this line to activate the console output
-            for i in range(len(problems)):
-                print("height ", i)
-                for j in range(len(problems[i])):
-                    if problems[i][j] is None:
-                        print("end_b")
-                    elif problems[i][j].solution is None:
-                        print("infeasible")
-                    else:
-                        print(problems[i][j].solution)  # """
-            # time to print the tree to the gui
+
+            # It's time to print the tree to the gui
             text_height = 30 * variables + 30
-            text_width = 200
+            text_width = 150
             layout = FloatLayout(size_hint=(None, None), size=(
                 text_width * len(problems[-1]) + text_width, text_height * len(problems) + text_height))
             for i in range(len(problems) - 1):
                 for j in range(len(problems[i])):
-                    print((
-                        (text_width * j * (len(problems[-1])) /
-                         len(problems[i])) + text_width * (
-                            len(problems[-1]) / (2 ** (i + 1))),
-                        text_height * (len(problems) - i)))
                     if problems[i][j] is not None:
                         if problems[i][j].solution is None:
                             text = "infeasible"
                         else:
-                            text = ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + problems[i][j].solution[
-                                0] + "\n"
+                            text = ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + str(
+                                problems[i][j].solution[
+                                    0]) + "\n"
                             for k in range(1, len(problems[i][j].solution)):
                                 text += "x" + str(k) + " = " + str(problems[i][j].solution[k]) + "\n"
                     else:
@@ -613,7 +600,7 @@ class Simplex:
 
             iteration += 1
         if self.solution is not None:
-            self.solution.append(zj[-1])
+            self.solution.append(float(zj[-1][:zj[-1].find("+")]))
             for x in variable_names[:variables]:
                 if x in basic_vars:
                     self.solution.append(b[basic_vars.index(x)])
