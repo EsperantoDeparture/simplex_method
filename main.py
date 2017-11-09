@@ -36,6 +36,7 @@ class OutputTable(GridLayout):
         # Colors for the output table
         self.base1 = list(map(lambda x: (x / 255), [0, 43, 54, 255]))
         self.base2 = list(map(lambda x: (x / 255), [7, 54, 66, 255]))
+        self.error = list(map(lambda x: (x / 255), [220, 50, 47, 255]))
         self.pivot = list(map(lambda x: (x / 255), [133, 153, 0, 255]))
         self.highlight = list(map(lambda x: (x / 255), [38, 139, 210, 255]))
 
@@ -194,6 +195,12 @@ class Gui(GridLayout):
         with self.canvas:
             Color(0, 0, 0, 0)
             Rectangle(pos=self.pos, size=self.size)
+
+        self.base1 = list(map(lambda x: (x / 255), [0, 43, 54, 255]))
+        self.base2 = list(map(lambda x: (x / 255), [7, 54, 66, 255]))
+        self.error = list(map(lambda x: (x / 255), [220, 50, 47, 255]))
+        self.pivot = list(map(lambda x: (x / 255), [133, 153, 0, 255]))
+        self.highlight = list(map(lambda x: (x / 255), [38, 139, 210, 255]))
 
         # when we add children to the grid layout, its size doesn't change at
         # all. we need to ensure that the height will be the minimum required
@@ -382,30 +389,15 @@ class Gui(GridLayout):
             # It's time to print the tree to the gui
             text_height = 30 * variables + 30
             text_width = 200
-            sibling_spacing = text_width / 2
+            sibling_spacing = text_width
             layout = FloatLayout(size_hint=(None, None), size=(
                 text_width * len(problems[-1]) + text_width, text_height * len(problems) + text_height))
             for i in range(len(problems) - 1):
                 for j in range(len(problems[i])):
                     if problems[i][j] is not None:
-                        if problems[i][j].solution is None:
-                            text = "infeasible"
-                        else:
-                            text = ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + str(
-                                problems[i][j].solution[
-                                    0]) + "\n"
-                            for k in range(1, len(problems[i][j].solution)):
-                                text += "x" + str(k) + " = " + str(problems[i][j].solution[k]) + "\n"
-
-                        layout.add_widget(Label(text=text,
-                                                pos=(
-                                                    ((sibling_spacing * j * (len(problems[-1])) /
-                                                      len(problems[i])) + sibling_spacing * (
-                                                         len(problems[-1]) / (2 ** (i + 1)))),
-                                                    text_height * (len(problems) - i)),
-                                                size=(text_width, text_height), size_hint=(None, None)))
                         if i != 0:
                             with self.canvas.before:
+                                Color(*self.pivot)
                                 Line(points=(
                                     ((sibling_spacing * j * (len(problems[-1])) /
                                       len(problems[i])) + sibling_spacing * (
@@ -414,8 +406,36 @@ class Gui(GridLayout):
                                     text_width / 2 +
                                     ((sibling_spacing * (j // 2) * (len(problems[-1])) /
                                       len(problems[i - 1])) + sibling_spacing * (
-                                         len(problems[-1]) / (2 ** (i + 1 - 1)))), text_height * 1.35 +
+                                         len(problems[-1]) / (2 ** (i + 1 - 1)))), text_height +
                                     text_height * (len(problems) - i)), width=1)
+                        if problems[i][j].solution is None:
+                            text = "infeasible"
+                            color = self.error
+                        else:
+                            color = self.base2
+                            if problems[i][j].solution[0] == optimal_solution[0]:
+                                color = self.highlight
+                            text = ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + str(
+                                problems[i][j].solution[
+                                    0]) + "\n"
+                            for k in range(1, len(problems[i][j].solution)):
+                                text += "x" + str(k) + " = " + str(problems[i][j].solution[k]) + "\n"
+
+                        with self.canvas.before:
+                            Color(*color)
+                            Rectangle(pos=(((sibling_spacing * j * (len(problems[-1])) /
+                                             len(problems[i])) + sibling_spacing * (
+                                                len(problems[-1]) / (2 ** (i + 1)))),
+                                           text_height * (len(problems) - i)),
+                                      size=(text_width, text_height))
+
+                        layout.add_widget(Label(text=text,
+                                                pos=(
+                                                    ((sibling_spacing * j * (len(problems[-1])) /
+                                                      len(problems[i])) + sibling_spacing * (
+                                                         len(problems[-1]) / (2 ** (i + 1)))),
+                                                    text_height * (len(problems) - i)),
+                                                size=(text_width, text_height), size_hint=(None, None)))
             # Printing the optimal solution
             text = "Optimal solution\n" + ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + str(
                 optimal_solution[0]) + "\n"
@@ -423,6 +443,9 @@ class Gui(GridLayout):
                 text += "x" + str(i) + " = " + str(optimal_solution[i]) + "\n"
             new_label = Label(text=text, size=(text_width, text_height),
                               pos=(0, len(problems) * text_height), size_hint=(None, None))
+            with self.canvas.before:
+                Color(*self.highlight)
+                Rectangle(pos=new_label.pos, size=new_label.size)
             layout.add_widget(new_label)
             self.add_widget(layout)
 
