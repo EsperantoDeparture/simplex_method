@@ -329,6 +329,8 @@ class Gui(GridLayout):
             # Initial problem
             problems = [[Simplex(variables, constraints, cj[:], [x[:] for x in a], b[:], constraint_types[:],
                                  variable_names, problem_type)]]
+            optimal_solution_aux = -math.inf if problem_type == "Maximize" else math.inf
+            optimal_solution = None
             while True:
                 for x in problems[height]:
                     if x is not None:
@@ -363,6 +365,14 @@ class Gui(GridLayout):
                                     problems[height + 1].append(np2)
                                     break
                             if not new_iter:
+                                if problem_type == "Maximize":
+                                    if optimal_solution_aux < solution[0]:
+                                        optimal_solution_aux = solution[0]
+                                        optimal_solution = solution
+                                else:
+                                    if optimal_solution_aux > solution[0]:
+                                        optimal_solution_aux = solution[0]
+                                        optimal_solution = solution
                                 problems[height + 1].append(None)
                                 problems[height + 1].append(None)
                 if not any(problems[height + 1]):
@@ -372,7 +382,7 @@ class Gui(GridLayout):
             # It's time to print the tree to the gui
             text_height = 30 * variables + 30
             text_width = 200
-            sibling_spacing = len(problems[-1])
+            sibling_spacing = text_width / 2
             layout = FloatLayout(size_hint=(None, None), size=(
                 text_width * len(problems[-1]) + text_width, text_height * len(problems) + text_height))
             for i in range(len(problems) - 1):
@@ -406,6 +416,14 @@ class Gui(GridLayout):
                                       len(problems[i - 1])) + sibling_spacing * (
                                          len(problems[-1]) / (2 ** (i + 1 - 1)))), text_height * 1.35 +
                                     text_height * (len(problems) - i)), width=1)
+            # Printing the optimal solution
+            text = "Optimal solution\n" + ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + str(
+                optimal_solution[0]) + "\n"
+            for i in range(1, len(optimal_solution)):
+                text += "x" + str(i) + " = " + str(optimal_solution[i]) + "\n"
+            new_label = Label(text=text, size=(text_width, text_height),
+                              pos=(0, len(problems) * text_height), size_hint=(None, None))
+            layout.add_widget(new_label)
             self.add_widget(layout)
 
 
