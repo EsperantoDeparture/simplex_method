@@ -1,10 +1,11 @@
 import math
+import os
 
 from antlr4 import CommonTokenStream
 from antlr4.FileStream import InputStream
 from kivy.app import App
 from kivy.core.window import Window
-from kivy.graphics import Color, Rectangle, Line
+from kivy.graphics import Color, Rectangle, Line, Translate, Fbo, ClearColor, ClearBuffers, Scale
 from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
@@ -13,6 +14,8 @@ from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 from kivy.uix.checkbox import CheckBox
+from kivy.uix.popup import Popup
+from kivy.uix.filechooser import FileChooserListView
 
 from mLexer import mLexer
 from mParser import mParser
@@ -187,6 +190,26 @@ class Variable(GridLayout):
             return 0.0
 
 
+class SaveDialog(GridLayout):
+    def __init__(self, save=None, dismiss=None):
+        super(SaveDialog, self).__init__()
+        self.cols = 1
+
+        self.save = save
+        self.dismiss = dismiss
+        self.text_input = TextInput(size_hint_y=None, height=30, multiline=False)
+        self.file_chooser = FileChooserListView()
+        self.save_btn = Button(text="Save", size_hint_y=None, height=30)
+        self.save_btn.bind(on_release=lambda e: self.save(self.file_chooser.path, self.text_input.text))
+        self.cancel_btn = Button(text="Cancel", size_hint_y=None, height=30)
+        self.cancel_btn.bind(on_release=self.dismiss)
+
+        self.add_widget(self.file_chooser)
+        self.add_widget(self.text_input)
+        self.add_widget(self.save_btn)
+        self.add_widget(self.cancel_btn)
+
+
 class Gui(GridLayout):
     def __init__(self, **kwargs):
         # create a default grid layout with custom width/height
@@ -235,7 +258,7 @@ class Gui(GridLayout):
         self.add_widget(self.open_problem_nature)
 
         self.submit = Button(text="Continue", size_hint=(None, None), size=(400, 30))
-        self.submit.bind(on_press=self.gen_input_table)
+        self.submit.bind(on_release=self.gen_input_table)
         self.add_widget(self.submit)
 
         self.fo = None
@@ -244,6 +267,7 @@ class Gui(GridLayout):
         self.integer_check = []
         self.constraints = []
         self.constraints_types = []
+        self._popup = None
 
     def gen_input_table(self, e):
         variables = int(self.number_of_variables.text)
@@ -297,7 +321,7 @@ class Gui(GridLayout):
                 self.add_widget(new_container)
 
         self.submit = Button(size_hint=(None, None), size=(400, 30))
-        self.submit.bind(on_press=self.solve)
+        self.submit.bind(on_release=self.solve)
         self.submit.text = "Continue"
         self.add_widget(self.submit)
 
@@ -395,19 +419,18 @@ class Gui(GridLayout):
             for i in range(len(problems) - 1):
                 for j in range(len(problems[i])):
                     if problems[i][j] is not None:
-                        if i != 0:
-                            with self.canvas.before:
-                                Color(*self.pivot)
-                                Line(points=(
-                                    ((sibling_spacing * j * (len(problems[-1])) /
-                                      len(problems[i])) + sibling_spacing * (
-                                         len(problems[-1]) / (2 ** (i + 1)))) + text_width / 2,
-                                    text_height * (len(problems) - i) + text_height / 1.5,
-                                    text_width / 2 +
-                                    ((sibling_spacing * (j // 2) * (len(problems[-1])) /
-                                      len(problems[i - 1])) + sibling_spacing * (
-                                         len(problems[-1]) / (2 ** (i + 1 - 1)))), text_height +
-                                    text_height * (len(problems) - i)), width=1)
+                        base_width = ((sibling_spacing * j * (len(problems[-1])) /
+                                       len(problems[i])) + sibling_spacing * (
+                                          len(problems[-1]) / (2 ** (i + 1))))
+                        base_height = text_height * (len(problems) - i)
+
+                        if i != len(problems) - 2 and (
+                                        problems[i + 1][j * 2] is None or problems[i][j].solution is None) and i != 0:
+                            base_width = ((sibling_spacing * (j // 2) * (len(problems[-1])) /
+                                           len(problems[i - 1])) + sibling_spacing * (
+                                              len(problems[-1]) / (2 ** i))) + (
+                                         text_width * 2 if (j + 1) % 2 == 0 else - text_width * 2)
+
                         if problems[i][j].solution is None:
                             text = "infeasible"
                             color = self.error
@@ -421,20 +444,28 @@ class Gui(GridLayout):
                             for k in range(1, len(problems[i][j].solution)):
                                 text += "x" + str(k) + " = " + str(problems[i][j].solution[k]) + "\n"
 
+                        if i != 0:
+                            with self.canvas.before:
+                                Color(*self.pivot)
+                                Line(points=(
+                                    base_width + text_width / 2,
+                                    base_height + text_height / 1.5,
+                                    text_width / 2 +
+                                    ((sibling_spacing * (j // 2) * (len(problems[-1])) /
+                                      len(problems[i - 1])) + sibling_spacing * (
+                                         len(problems[-1]) / (2 ** i))), text_height +
+                                    base_height), width=1)
+
                         with self.canvas.before:
                             Color(*color)
-                            Rectangle(pos=(((sibling_spacing * j * (len(problems[-1])) /
-                                             len(problems[i])) + sibling_spacing * (
-                                                len(problems[-1]) / (2 ** (i + 1)))),
-                                           text_height * (len(problems) - i)),
+                            Rectangle(pos=(base_width,
+                                           base_height),
                                       size=(text_width, text_height))
 
                         layout.add_widget(Label(text=text,
                                                 pos=(
-                                                    ((sibling_spacing * j * (len(problems[-1])) /
-                                                      len(problems[i])) + sibling_spacing * (
-                                                         len(problems[-1]) / (2 ** (i + 1)))),
-                                                    text_height * (len(problems) - i)),
+                                                    base_width,
+                                                    base_height),
                                                 size=(text_width, text_height), size_hint=(None, None)))
             # Printing the optimal solution
             text = "Optimal solution\n" + ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + str(
@@ -447,7 +478,28 @@ class Gui(GridLayout):
                 Color(*self.highlight)
                 Rectangle(pos=new_label.pos, size=new_label.size)
             layout.add_widget(new_label)
+
+            save_btn = Button(text="Export as png", size=(text_width, 30),
+                              pos=(0, len(problems) * text_height - 30), size_hint=(None, None))
+            save_btn.bind(on_release=self.show_save)
+            layout.add_widget(save_btn)
             self.add_widget(layout)
+
+    def show_save(self, btn):
+        content = SaveDialog(save=self.save, dismiss=self.dismiss_popup)
+        self._popup = Popup(title="Save file", content=content,
+                            size_hint=(0.9, 0.9))
+        self._popup.open()
+
+    def dismiss_popup(self, e):
+        self._popup.dismiss()
+
+    def save(self, path, filename):
+        print(path, "\n", filename)
+        if self.open_problem_nature.text == "Integer Linear Programming":
+            f = os.path.join(path, filename)
+            self.export_to_png(f + ".png" if ".png" not in f else f)
+        self._popup.dismiss()
 
 
 class Simplex:
