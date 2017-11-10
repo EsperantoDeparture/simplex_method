@@ -17,6 +17,9 @@ from kivy.uix.checkbox import CheckBox
 from kivy.uix.popup import Popup
 from kivy.uix.filechooser import FileChooserListView
 
+from openpyxl import Workbook
+from openpyxl.styles import NamedStyle, Border, Side, PatternFill, Font
+
 from mLexer import mLexer
 from mParser import mParser
 from mVisitor import mVisitor
@@ -53,6 +56,15 @@ class OutputTable(GridLayout):
         self.constraints = len(cb)
         self.number_of_iterations = number_of_iterations
         self.iteration = iteration
+        self.a = [x[:] for x in a]
+        self.b = b[:]
+        self.cb = cb[:]
+        self.basic_vars = basic_vars[:]
+        self.cj = cj[:]
+        self.cj_minus_zj = cj_minus_zj[:]
+        self.variable_names = variable_names[:]
+        self.zj = zj[:]
+        self.cj_minus_zj = cj_minus_zj[:]
 
         # First row: Iteration number and a padding of empty labels
         self.add_widget(Label(text=("Iter: " + str(iteration)), size_hint=(None, None), size=(100, 30)))
@@ -76,8 +88,10 @@ class OutputTable(GridLayout):
         # Fourth row: empty label, 'Zj', the actual values of Zj
         self.add_widget(Label(size_hint=(None, None), size=(100, 30)))
         self.add_widget(Label(text="Zj", size_hint=(None, None), size=(100, 30)))
-        for x in zj:
-            self.add_widget(Label(text=x, size_hint=(None, None), size=(200, 30)))
+        for i in range(len(zj)):
+            self.add_widget(
+                Label(text=(zj[i] if i < (len(zj) - 1) else zj[-1][:zj[-1].find("+")]), size_hint=(None, None),
+                      size=(200, 30)))
 
         # Fifth to N-1th row: Cb[i], basic_variables[i], a[i][0]...a[i][len(a[i]) - 1], b[i]
         for i in range(len(a)):
@@ -353,6 +367,12 @@ class Gui(GridLayout):
             for i in range(1, len(solution)):
                 self.add_widget(Label(text=("x" + str(i) + " = " + str(solution[i])), size_hint=(None, None),
                                       size=(250, 30)))
+            save_to_xl = Button(text="Export as Excel 2010 xlsx", size_hint=(None, None), size=(250, 30))
+            save_to_xl.bind(on_release=lambda e: self.show_save_xl(e, s))
+            self.add_widget(save_to_xl)
+            save_to_png = Button(text="Export as png", size_hint=(None, None), size=(250, 30))
+            save_to_png.bind(on_release=self.show_save_png)
+            self.add_widget(save_to_png)
             for i in range(len(output_tables)):
                 self.add_widget(output_tables[i])
         else:  # Integer linear programming
@@ -417,6 +437,9 @@ class Gui(GridLayout):
             sibling_spacing = text_width
             layout = FloatLayout(size_hint=(None, None), size=(
                 text_width * len(problems[-1]) + text_width, text_height * len(problems) + 100 * len(problems)))
+            with self.canvas.before:
+                Color(*self.base1)
+                Rectangle(pos=layout.pos, size=layout.size)
             for i in range(len(problems) - 1):
                 for j in range(len(problems[i])):
                     if problems[i][j] is not None:
@@ -457,7 +480,7 @@ class Gui(GridLayout):
                                     size=(text_width, text_height), size_hint=(None, None)))
 
                             with self.canvas.before:
-                                Color(*self.pivot)
+                                Color(*self.base3)
                                 Line(points=(
                                     base_width + text_width / 2,
                                     base_height + text_height,
@@ -505,12 +528,12 @@ class Gui(GridLayout):
             save_btn = Button(text="Export as png", size=(text_width, 30),
                               pos=(0, len(problems) * text_height - 30 + 100 * (len(problems) - 1)),
                               size_hint=(None, None))
-            save_btn.bind(on_release=self.show_save)
+            save_btn.bind(on_release=self.show_save_png)
             layout.add_widget(save_btn)
             self.add_widget(layout)
 
-    def show_save(self, btn):
-        content = SaveDialog(save=self.save, dismiss=self.dismiss_popup)
+    def show_save_png(self, btn):
+        content = SaveDialog(save=self.save_png, dismiss=self.dismiss_popup)
         self._popup = Popup(title="Save file", content=content,
                             size_hint=(0.9, 0.9))
         self._popup.open()
@@ -518,11 +541,118 @@ class Gui(GridLayout):
     def dismiss_popup(self, e):
         self._popup.dismiss()
 
-    def save(self, path, filename):
-        if self.open_problem_nature.text == "Integer Linear Programming":
-            f = os.path.join(path, filename)
-            self.export_to_png(f + ".png" if ".png" not in f else f)
+    def save_png(self, path, filename):
+        f = os.path.join(path, filename)
+        self.export_to_png(f + ".png" if filename[-5:] != ".png" else f)
         self._popup.dismiss()
+
+    def show_save_xl(self, btn, problem):
+        content = SaveDialog(save=lambda path, filename: self.save_xl(path, filename, problem),
+                             dismiss=self.dismiss_popup)
+        self._popup = Popup(title="Save file", content=content,
+                            size_hint=(0.9, 0.9))
+        self._popup.open()
+
+    def save_xl(self, path, filename, problem):
+        f = os.path.join(path, filename) + (".xlsx" if filename[-5:] != ".xslx" else "")
+        wb = Workbook()
+        ws = wb.active
+        self._popup.dismiss()
+
+        base = NamedStyle(name="base")
+        bd = Side(style='thin', color="586e75")
+        base.border = Border(left=bd, top=bd, right=bd, bottom=bd)
+        base.fill = PatternFill(start_color='00002b36',
+                                end_color='00002b36',
+                                fill_type='solid')
+        base.font = Font(color="fdf6e3")
+        wb.add_named_style(base)
+
+        base2 = NamedStyle(name="base2")
+        bd = Side(style='thin', color="586e75")
+        base2.border = Border(left=bd, top=bd, right=bd, bottom=bd)
+        base2.fill = PatternFill(start_color='00073642',
+                                 end_color='00073642',
+                                 fill_type='solid')
+        base2.font = Font(color="fdf6e3")
+        wb.add_named_style(base2)
+
+        highlight = NamedStyle(name="highlight")
+        bd = Side(style='thin', color="586e75")
+        highlight.border = Border(left=bd, top=bd, right=bd, bottom=bd)
+        highlight.fill = PatternFill(start_color='002aa198',
+                                     end_color='002aa198',
+                                     fill_type='solid')
+        highlight.font = Font(color="fdf6e3")
+        wb.add_named_style(highlight)
+
+        pivot = NamedStyle(name="pivot")
+        bd = Side(style='thin', color="586e75")
+        pivot.border = Border(left=bd, top=bd, right=bd, bottom=bd)
+        pivot.fill = PatternFill(start_color='002aa198',
+                                 end_color='002aa198',
+                                 fill_type='solid')
+        pivot.font = Font(color="fdf6e3")
+        wb.add_named_style(pivot)
+
+        for i in range(1, len(problem.output_tables) + 1):
+            row = 1 if i == 1 else (5 + problem.number_of_constraints) * (i - 1) + 2 + (1 if i > 2 else 0)
+
+            ws.merge_cells(start_row=row, start_column=1, end_row=row,
+                           end_column=(3 + len(problem.output_tables[i - 1].variable_names)))
+            ws.cell(row=row, column=1, value=("Iter" + str(problem.output_tables[i - 1].iteration))).style = base
+            row += 1
+
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+            ws.cell(row=row, column=1, value="Cj").style = base
+            for j in range(3, 3 + len(problem.output_tables[i - i].cj)):
+                ws.cell(row=row, column=j, value=problem.output_tables[i - 1].cj[j - 3]).style = base
+
+            ws.merge_cells(start_row=row, start_column=(3 + len(problem.output_tables[i - 1].a[0])), end_row=(row + 1),
+                           end_column=(3 + len(problem.output_tables[i - 1].a[0])))
+            ws.cell(row=row, column=(3 + len(problem.output_tables[i - 1].a[0])), value="b").style = base
+
+            row += 1
+            ws.merge_cells(start_row=row, start_column=1, end_row=(row + 1), end_column=1)
+            ws.cell(row=row, column=1, value="Cb").style = base
+
+            ws.cell(row=row, column=2, value="basic variables").style = base
+            for j in range(3, 3 + len(problem.output_tables[i - 1].variable_names)):
+                ws.cell(row=row, column=j, value=problem.output_tables[i - 1].variable_names[j - 3]).style = base
+
+            row += 1
+            ws.cell(row=row, column=2, value="zj").style = base
+            for j in range(3, 3 + len(problem.output_tables[i - 1].zj)):
+                ws.cell(row=row, column=j, value=problem.output_tables[i - 1].zj[j - 3]).style = base
+
+            row += 1
+            for j in range(len(problem.a)):
+                ws.cell(row=(row + j), column=1, value=problem.output_tables[i - 1].cb[j]).style = base2
+                ws.cell(row=(row + j), column=2, value=problem.output_tables[i - 1].basic_vars[j]).style = base2
+
+                for k in range(len(problem.output_tables[i - 1].a[j])):
+                    if j == problem.output_tables[i - 1].leaving_variable or k == problem.output_tables[
+                                i - 1].entering_variable:
+                        ws.cell(row=(row + j), column=(k + 3),
+                                value=problem.output_tables[i - 1].a[j][k]).style = highlight
+                    elif j == problem.output_tables[i - 1].leaving_variable and k == problem.output_tables[
+                                i - 1].entering_variable:
+                        ws.cell(row=(row + j), column=(k + 3),
+                                value=problem.output_tables[i - 1].a[j][k]).style = pivot
+                    else:
+                        ws.cell(row=(row + j), column=(k + 3),
+                                value=problem.output_tables[i - 1].a[j][k]).style = base2
+
+                ws.cell(row=(row + j), column=(2 + len(problem.output_tables[i - 1].a[j]) + 1),
+                        value=problem.output_tables[i - 1].b[j]).style = base2
+            row += problem.number_of_constraints
+
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+            ws.cell(row=row, column=1, value="Cj - Zj").style = base
+
+            for j in range(3, 3 + len(problem.output_tables[i - 1].cj_minus_zj)):
+                ws.cell(row=row, column=j, value=problem.output_tables[i - 1].cj_minus_zj[j - 3]).style = base
+        wb.save(f)
 
 
 class Simplex:
