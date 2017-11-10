@@ -5,7 +5,7 @@ from antlr4 import CommonTokenStream
 from antlr4.FileStream import InputStream
 from kivy.app import App
 from kivy.core.window import Window
-from kivy.graphics import Color, Rectangle, Line, Translate, Fbo, ClearColor, ClearBuffers, Scale
+from kivy.graphics import Color, Rectangle, Line
 from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
@@ -221,6 +221,7 @@ class Gui(GridLayout):
 
         self.base1 = list(map(lambda x: (x / 255), [0, 43, 54, 255]))
         self.base2 = list(map(lambda x: (x / 255), [7, 54, 66, 255]))
+        self.base3 = list(map(lambda x: (x / 255), [253, 246, 227, 255]))
         self.error = list(map(lambda x: (x / 255), [220, 50, 47, 255]))
         self.pivot = list(map(lambda x: (x / 255), [133, 153, 0, 255]))
         self.highlight = list(map(lambda x: (x / 255), [38, 139, 210, 255]))
@@ -247,7 +248,7 @@ class Gui(GridLayout):
         # Type of the problem
         self.problem_nature = DropDown()
         for x in ["Linear Programming", "Integer Linear Programming"]:
-            btn = Button(text=x, size_hint_y=None, height=44)
+            btn = Button(text=x, size_hint_y=None, height=30)
             btn.bind(on_release=lambda btn: self.problem_nature.select(btn.text))
             self.problem_nature.add_widget(btn)
         self.open_problem_nature = Button(text="Linear Programming", size_hint=(None, None), size=(400, 30))
@@ -415,21 +416,21 @@ class Gui(GridLayout):
             text_width = 200
             sibling_spacing = text_width
             layout = FloatLayout(size_hint=(None, None), size=(
-                text_width * len(problems[-1]) + text_width, text_height * len(problems) + text_height))
+                text_width * len(problems[-1]) + text_width, text_height * len(problems) + 100 * len(problems)))
             for i in range(len(problems) - 1):
                 for j in range(len(problems[i])):
                     if problems[i][j] is not None:
                         base_width = ((sibling_spacing * j * (len(problems[-1])) /
                                        len(problems[i])) + sibling_spacing * (
                                           len(problems[-1]) / (2 ** (i + 1))))
-                        base_height = text_height * (len(problems) - i)
+                        base_height = text_height * (len(problems) - i) + 100 * (len(problems) - i - 1)
 
                         if i != len(problems) - 2 and (
                                         problems[i + 1][j * 2] is None or problems[i][j].solution is None) and i != 0:
                             base_width = ((sibling_spacing * (j // 2) * (len(problems[-1])) /
                                            len(problems[i - 1])) + sibling_spacing * (
                                               len(problems[-1]) / (2 ** i))) + (
-                                         text_width * 2 if (j + 1) % 2 == 0 else - text_width * 2)
+                                             text_width * 2 if (j + 1) % 2 == 0 else - text_width * 2)
 
                         if problems[i][j].solution is None:
                             text = "infeasible"
@@ -445,22 +446,39 @@ class Gui(GridLayout):
                                 text += "x" + str(k) + " = " + str(problems[i][j].solution[k]) + "\n"
 
                         if i != 0:
+                            layout.add_widget(
+                                Label(text=(
+                                    "x" + str(problems[i][j].a[-1].index(1.0) + 1) + " " +
+                                    problems[i][j].constraint_types[
+                                        -1] + " " + str(problems[i][j].b[-1])),
+                                    pos=(
+                                        base_width,
+                                        base_height + text_height / 2 + 15),
+                                    size=(text_width, text_height), size_hint=(None, None)))
+
                             with self.canvas.before:
                                 Color(*self.pivot)
                                 Line(points=(
                                     base_width + text_width / 2,
-                                    base_height + text_height / 1.5,
+                                    base_height + text_height,
                                     text_width / 2 +
                                     ((sibling_spacing * (j // 2) * (len(problems[-1])) /
                                       len(problems[i - 1])) + sibling_spacing * (
                                          len(problems[-1]) / (2 ** i))), text_height +
-                                    base_height), width=1)
+                                    base_height + 100), width=1)
 
                         with self.canvas.before:
                             Color(*color)
                             Rectangle(pos=(base_width,
                                            base_height),
                                       size=(text_width, text_height))
+
+                            Color(*self.base3)
+                            Line(points=(
+                                base_width, base_height, base_width, base_height + text_height,
+                                base_width + text_width,
+                                base_height + text_height, base_width + text_width, base_height, base_width,
+                                base_height, base_width + text_width, base_height), width=1)
 
                         layout.add_widget(Label(text=text,
                                                 pos=(
@@ -473,14 +491,20 @@ class Gui(GridLayout):
             for i in range(1, len(optimal_solution)):
                 text += "x" + str(i) + " = " + str(optimal_solution[i]) + "\n"
             new_label = Label(text=text, size=(text_width, text_height),
-                              pos=(0, len(problems) * text_height), size_hint=(None, None))
+                              pos=(0, len(problems) * text_height + 100 * (len(problems) - 1)), size_hint=(None, None))
             with self.canvas.before:
                 Color(*self.highlight)
                 Rectangle(pos=new_label.pos, size=new_label.size)
             layout.add_widget(new_label)
 
+            layout.add_widget(
+                Label(text="The spanning tree is on the right side of the window ->",
+                      pos=(new_label.x + 200, new_label.y),
+                      size_hint=(None, None), size=(400, 30)))
+
             save_btn = Button(text="Export as png", size=(text_width, 30),
-                              pos=(0, len(problems) * text_height - 30), size_hint=(None, None))
+                              pos=(0, len(problems) * text_height - 30 + 100 * (len(problems) - 1)),
+                              size_hint=(None, None))
             save_btn.bind(on_release=self.show_save)
             layout.add_widget(save_btn)
             self.add_widget(layout)
@@ -495,7 +519,6 @@ class Gui(GridLayout):
         self._popup.dismiss()
 
     def save(self, path, filename):
-        print(path, "\n", filename)
         if self.open_problem_nature.text == "Integer Linear Programming":
             f = os.path.join(path, filename)
             self.export_to_png(f + ".png" if ".png" not in f else f)
