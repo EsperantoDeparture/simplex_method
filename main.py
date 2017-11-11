@@ -440,6 +440,33 @@ class Gui(GridLayout):
             with self.canvas.before:
                 Color(*self.base1)
                 Rectangle(pos=layout.pos, size=layout.size)
+
+            def toggle(x, p):
+                nonlocal layout
+                if not x.status:
+                    x.status = 1
+                    x.text = "-"
+                    if x.start:
+                        x.start = False
+                        x.scroll_view = ScrollView(size_hint=(None, None), size=(500, 300),
+                                                   do_scroll_x=True, pos=(
+                                x.x + x.width * 2, x.y - 300 - x.height))
+                        gl = GridLayout(cols=1,
+                                        size_hint=(None, None), width=500)
+                        gl.bind(minimum_width=gl.setter('width'))
+                        gl.bind(minimum_height=gl.setter('height'))
+
+                        for table in p[x.i][x.j].output_tables:
+                            gl.add_widget(table)
+                        x.scroll_view.add_widget(gl)
+                        layout.add_widget(x.scroll_view)
+                    else:
+                        layout.add_widget(x.scroll_view)
+                else:
+                    x.status = 0
+                    x.text = "+"
+                    layout.remove_widget(x.scroll_view)
+
             for i in range(len(problems) - 1):
                 for j in range(len(problems[i])):
                     if problems[i][j] is not None:
@@ -503,6 +530,18 @@ class Gui(GridLayout):
                                 base_height + text_height, base_width + text_width, base_height, base_width,
                                 base_height, base_width + text_width, base_height), width=1)
 
+                        new_button = Button(text="+", size_hint=(None, None),
+                                            size=(30, 30),
+                                            pos=(base_width + text_width - 15, base_height + text_height - 17),
+                                            border=(0, 0, 0, 0),
+                                            background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])))
+                        new_button.i = i
+                        new_button.j = j
+                        new_button.start = True
+                        new_button.status = 0
+                        new_button.bind(on_release=lambda x: toggle(x, problems))
+                        layout.add_widget(new_button)
+
                         layout.add_widget(Label(text=text,
                                                 pos=(
                                                     base_width,
@@ -527,7 +566,9 @@ class Gui(GridLayout):
 
             save_btn = Button(text="Export as png", size=(text_width, 30),
                               pos=(0, len(problems) * text_height - 30 + 100 * (len(problems) - 1)),
-                              size_hint=(None, None))
+                              size_hint=(None, None),
+                              border=(0, 0, 0, 0),
+                              background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])))
             save_btn.bind(on_release=self.show_save_png)
             layout.add_widget(save_btn)
             self.add_widget(layout)
@@ -589,8 +630,8 @@ class Gui(GridLayout):
         pivot = NamedStyle(name="pivot")
         bd = Side(style='thin', color="586e75")
         pivot.border = Border(left=bd, top=bd, right=bd, bottom=bd)
-        pivot.fill = PatternFill(start_color='002aa198',
-                                 end_color='002aa198',
+        pivot.fill = PatternFill(start_color='00859900',
+                                 end_color='00859900',
                                  fill_type='solid')
         pivot.font = Font(color="fdf6e3")
         wb.add_named_style(pivot)
@@ -631,14 +672,14 @@ class Gui(GridLayout):
                 ws.cell(row=(row + j), column=2, value=problem.output_tables[i - 1].basic_vars[j]).style = base2
 
                 for k in range(len(problem.output_tables[i - 1].a[j])):
-                    if j == problem.output_tables[i - 1].leaving_variable or k == problem.output_tables[
-                                i - 1].entering_variable:
-                        ws.cell(row=(row + j), column=(k + 3),
-                                value=problem.output_tables[i - 1].a[j][k]).style = highlight
-                    elif j == problem.output_tables[i - 1].leaving_variable and k == problem.output_tables[
+                    if j == problem.output_tables[i - 1].leaving_variable and k == problem.output_tables[
                                 i - 1].entering_variable:
                         ws.cell(row=(row + j), column=(k + 3),
                                 value=problem.output_tables[i - 1].a[j][k]).style = pivot
+                    elif j == problem.output_tables[i - 1].leaving_variable or k == problem.output_tables[
+                                i - 1].entering_variable:
+                        ws.cell(row=(row + j), column=(k + 3),
+                                value=problem.output_tables[i - 1].a[j][k]).style = highlight
                     else:
                         ws.cell(row=(row + j), column=(k + 3),
                                 value=problem.output_tables[i - 1].a[j][k]).style = base2
@@ -705,12 +746,12 @@ class Simplex:
 
         # Now I want to see the identity matrix
         gt_constraints = constraint_types.count(">=")
-        variable_names += ["e" + str(i) for i in range(1, gt_constraints + 1)]
+        variable_names += ["sr" + str(i) for i in range(1, gt_constraints + 1)]
         variable_names += ["a" + str(i) for i in range(1, gt_constraints + 1)]
         eq_constraints = constraint_types.count("=")
         variable_names += ["a" + str(i) for i in range(gt_constraints + 1, eq_constraints + gt_constraints + 1)]
         lt_constraints = constraint_types.count("<=")
-        variable_names += ["h" + str(i) for i in range(1, lt_constraints + 1)]
+        variable_names += ["sl" + str(i) for i in range(1, lt_constraints + 1)]
 
         cj_minus_zj = ["0.0" for x in range(variables + gt_constraints * 2 + eq_constraints + lt_constraints)]
         zj = cj_minus_zj[:]
