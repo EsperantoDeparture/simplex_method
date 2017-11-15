@@ -35,9 +35,9 @@ class OutputTable(GridLayout):
         self.background_height = None
 
         self.bind(minimum_height=self.setter('height'))
-        self.bind(minimum_height=lambda x, y: self.resize_background("height", x, y))
+        self.bind(minimum_height=lambda x, y: self.resize_background())
         self.bind(minimum_width=self.setter('width'))
-        self.bind(minimum_width=lambda x, y: self.resize_background("width", x, y))
+        self.bind(minimum_width=lambda x, y: self.resize_background())
 
         # Colors for the output table
         self.base1 = list(map(lambda x: (x / 255), [0, 43, 54, 255]))
@@ -109,13 +109,17 @@ class OutputTable(GridLayout):
             self.add_widget(Label(text=x, size_hint=(None, None), size=(200, 30)))
         self.add_widget(Label(size_hint=(None, None), size=(100, 30)))
 
-    def resize_background(self, s, x, y):
+    def resize_background(self):
         self.canvas.before.clear()
         with self.canvas.before:
             Color(*self.base1)
             self.background = Rectangle(
                 pos=(self.x, self.height * (self.number_of_iterations - self.iteration - 1)),
                 size=self.size)
+            Color(*self.base2)
+            Rectangle(
+                pos=(self.x, self.height * (self.number_of_iterations - self.iteration - 1) + self.height - 30),
+                size=(self.width, 30))
             if self.entering_variable is not None:
                 # Leaving variable's row
                 Color(*self.highlight)
@@ -158,17 +162,25 @@ class Constraint(GridLayout):
             self.add_widget(self.variables[i])
         self.type = DropDown()
         for x in ["<=", ">=", "="]:
-            btn = Button(text=x, size_hint_y=None, height=44)
+            btn = Button(text=x, size_hint_y=None, height=30,
+                         border=(0, 0, 0, 0),
+                         background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                         background_normal="")
             btn.bind(on_release=lambda btn: self.type.select(btn.text))
             self.type.add_widget(btn)
-        self.open_type = Button(text="<=", size_hint=(None, None), size=(50, 30))
+        self.open_type = Button(text="<=", size_hint=(None, None), size=(50, 30),
+                                border=(0, 0, 0, 0),
+                                background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                                background_normal="")
         self.open_type.bind(on_release=self.type.open)
         self.type.bind(on_select=lambda instance, x: setattr(self.open_type, "text", x))
 
         self.add_widget(self.open_type)
 
         self.rhs = TextInput(multiline=False,
-                             size_hint=(None, None), size=(100, 30))
+                             size_hint=(None, None), size=(100, 30),
+                             background_color=list(map(lambda x: (x / 255), [7, 54, 66, 255])),
+                             border=(0, 0, 0, 0), foreground_color=(1, 1, 1, 1))
         self.add_widget(self.rhs)
 
     def get_coefficients(self):
@@ -193,7 +205,8 @@ class Variable(GridLayout):
 
         self.bind(minimum_height=self.setter('height'))
         self.bind(minimum_width=self.setter('width'))
-        self.var = TextInput(multiline=False)
+        self.var = TextInput(multiline=False, background_color=list(map(lambda x: (x / 255), [7, 54, 66, 255])),
+                             border=(0, 0, 0, 0), foreground_color=(1, 1, 1, 1))
         self.add_widget(self.var)
         self.add_widget(Label(text=("X" + str(i) + ("" if last else " +"))))
 
@@ -211,11 +224,19 @@ class SaveDialog(GridLayout):
 
         self.save = save
         self.dismiss = dismiss
-        self.text_input = TextInput(size_hint_y=None, height=30, multiline=False)
+        self.text_input = TextInput(size_hint_y=None, height=30, multiline=False,
+                                    background_color=list(map(lambda x: (x / 255), [7, 54, 66, 255])),
+                                    border=(0, 0, 0, 0), foreground_color=(1, 1, 1, 1))
         self.file_chooser = FileChooserListView()
-        self.save_btn = Button(text="Save", size_hint_y=None, height=30)
+        self.save_btn = Button(text="Save", size_hint_y=None, height=30,
+                               background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                               background_normal="",
+                               border=(0, 0, 0, 0))
         self.save_btn.bind(on_release=lambda e: self.save(self.file_chooser.path, self.text_input.text))
-        self.cancel_btn = Button(text="Cancel", size_hint_y=None, height=30)
+        self.cancel_btn = Button(text="Cancel", size_hint_y=None, height=30,
+                                 background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                                 background_normal="",
+                                 border=(0, 0, 0, 0))
         self.cancel_btn.bind(on_release=self.dismiss)
 
         self.add_widget(self.file_chooser)
@@ -229,9 +250,12 @@ class Gui(GridLayout):
         # create a default grid layout with custom width/height
         super(Gui, self).__init__(**kwargs)
 
-        with self.canvas:
-            Color(0, 0, 0, 0)
-            Rectangle(pos=self.pos, size=self.size)
+        # when we add children to the grid layout, its size doesn't change at
+        # all. we need to ensure that the height will be the minimum required
+        # to contain all the childs. (otherwise, we'll child outside the
+        # bounding box of the childs)
+        self.bind(minimum_height=self.setter('height'))
+        self.bind(minimum_width=self.setter('width'))
 
         self.base1 = list(map(lambda x: (x / 255), [0, 43, 54, 255]))
         self.base2 = list(map(lambda x: (x / 255), [7, 54, 66, 255]))
@@ -240,39 +264,46 @@ class Gui(GridLayout):
         self.pivot = list(map(lambda x: (x / 255), [133, 153, 0, 255]))
         self.highlight = list(map(lambda x: (x / 255), [38, 139, 210, 255]))
 
-        # when we add children to the grid layout, its size doesn't change at
-        # all. we need to ensure that the height will be the minimum required
-        # to contain all the childs. (otherwise, we'll child outside the
-        # bounding box of the childs)
-        self.bind(minimum_height=self.setter('height'))
-        self.bind(minimum_width=self.setter('width'))
+        # self.bind(minimum_height=lambda x, y: self.resize_background())
+        # self.bind(minimum_width=lambda x, y: self.resize_background())
 
         # How many variables has the problem?
         self.add_widget(
             Label(text="How many decision variables has the problem?", size_hint=(None, None), size=(400, 30)))
-        self.number_of_variables = TextInput(size_hint=(None, None), size=(400, 30))
+        self.number_of_variables = TextInput(size_hint=(None, None), size=(400, 30), background_color=self.base2,
+                                             border=(0, 0, 0, 0), foreground_color=(1, 1, 1, 1))
         self.add_widget(self.number_of_variables)
 
         # How many constraints?
         self.add_widget(
             Label(text="How many restrictions?"))
-        self.number_of_constraints = TextInput(size_hint=(None, None), size=(400, 30))
+        self.number_of_constraints = TextInput(size_hint=(None, None), size=(400, 30), background_color=self.base2,
+                                               border=(0, 0, 0, 0), foreground_color=(1, 1, 1, 1))
         self.add_widget(self.number_of_constraints)
 
         # Type of the problem
         self.problem_nature = DropDown()
         for x in ["Linear Programming", "Integer Linear Programming"]:
-            btn = Button(text=x, size_hint_y=None, height=30)
+            btn = Button(text=x, size_hint_y=None, height=30,
+                         background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                         background_normal="",
+                         border=(0, 0, 0, 0))
             btn.bind(on_release=lambda btn: self.problem_nature.select(btn.text))
             self.problem_nature.add_widget(btn)
-        self.open_problem_nature = Button(text="Linear Programming", size_hint=(None, None), size=(400, 30))
+        self.open_problem_nature = Button(text="Linear Programming", size_hint=(None, None), size=(400, 30),
+                                          background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                                          background_normal="",
+                                          border=(0, 0, 0, 0))
         self.open_problem_nature.bind(on_release=self.problem_nature.open)
         self.problem_nature.bind(on_select=lambda instance, x: setattr(self.open_problem_nature, "text", x))
 
         self.add_widget(Label(text="Type of the problem:", size_hint=(None, None), size=(400, 30)))
         self.add_widget(self.open_problem_nature)
 
-        self.submit = Button(text="Continue", size_hint=(None, None), size=(400, 30))
+        self.submit = Button(text="Continue", size_hint=(None, None), size=(400, 30),
+                             background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                             background_normal="",
+                             border=(0, 0, 0, 0))
         self.submit.bind(on_release=self.gen_input_table)
         self.add_widget(self.submit)
 
@@ -284,6 +315,14 @@ class Gui(GridLayout):
         self.constraints_types = []
         self._popup = None
 
+    def resize_background(self):
+        self.canvas.before.clear()
+        with self.canvas.before:
+            Color(*self.base1)
+            Rectangle(
+                pos=self.pos,
+                size=self.size)
+
     def gen_input_table(self, e):
         variables = int(self.number_of_variables.text)
         constraints = int(self.number_of_constraints.text)
@@ -292,10 +331,16 @@ class Gui(GridLayout):
 
         self.type = DropDown()
         for x in ["Maximize", "Minimize"]:
-            btn = Button(text=x, size_hint_y=None, height=44)
+            btn = Button(text=x, size_hint_y=None, height=30,
+                         background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                         background_normal="",
+                         border=(0, 0, 0, 0))
             btn.bind(on_release=lambda btn: self.type.select(btn.text))
             self.type.add_widget(btn)
-        self.open_problem_type = Button(text="Maximize", size_hint=(None, None), size=(100, 44))
+        self.open_problem_type = Button(text="Maximize", size_hint=(None, None), size=(100, 30),
+                                        background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                                        background_normal="",
+                                        border=(0, 0, 0, 0))
         self.open_problem_type.bind(on_release=self.type.open)
         self.type.bind(on_select=lambda instance, x: setattr(self.open_problem_type, "text", x))
 
@@ -335,7 +380,10 @@ class Gui(GridLayout):
                 new_container.add_widget(new_check_box)
                 self.add_widget(new_container)
 
-        self.submit = Button(size_hint=(None, None), size=(400, 30))
+        self.submit = Button(size_hint=(None, None), size=(400, 30),
+                             background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                             background_normal="",
+                             border=(0, 0, 0, 0))
         self.submit.bind(on_release=self.solve)
         self.submit.text = "Continue"
         self.add_widget(self.submit)
@@ -367,10 +415,16 @@ class Gui(GridLayout):
             for i in range(1, len(solution)):
                 self.add_widget(Label(text=("x" + str(i) + " = " + str(solution[i])), size_hint=(None, None),
                                       size=(250, 30)))
-            save_to_xl = Button(text="Export as Excel 2010 xlsx", size_hint=(None, None), size=(250, 30))
+            save_to_xl = Button(text="Export as Excel 2010 xlsx", size_hint=(None, None), size=(250, 30),
+                                background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                                background_normal="",
+                                border=(0, 0, 0, 0))
             save_to_xl.bind(on_release=lambda e: self.show_save_xl(e, s))
             self.add_widget(save_to_xl)
-            save_to_png = Button(text="Export as png", size_hint=(None, None), size=(250, 30))
+            save_to_png = Button(text="Export as png", size_hint=(None, None), size=(250, 30),
+                                 background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                                 background_normal="",
+                                 border=(0, 0, 0, 0))
             save_to_png.bind(on_release=self.show_save_png)
             self.add_widget(save_to_png)
             for i in range(len(output_tables)):
@@ -537,6 +591,8 @@ class Gui(GridLayout):
                                             background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])))
                         new_button.i = i
                         new_button.j = j
+                        new_button.background_normal = ""
+                        new_button.background_down = ""
                         new_button.start = True
                         new_button.status = 0
                         new_button.bind(on_release=lambda x: toggle(x, problems))
@@ -568,7 +624,9 @@ class Gui(GridLayout):
                               pos=(0, len(problems) * text_height - 30 + 100 * (len(problems) - 1)),
                               size_hint=(None, None),
                               border=(0, 0, 0, 0),
-                              background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])))
+                              background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                              background_normal=""
+                              )
             save_btn.bind(on_release=self.show_save_png)
             layout.add_widget(save_btn)
             self.add_widget(layout)
@@ -576,7 +634,8 @@ class Gui(GridLayout):
     def show_save_png(self, btn):
         content = SaveDialog(save=self.save_png, dismiss=self.dismiss_popup)
         self._popup = Popup(title="Save file", content=content,
-                            size_hint=(0.9, 0.9))
+                            size_hint=(0.9, 0.9),
+                            background="src/images/colors/base1.png")
         self._popup.open()
 
     def dismiss_popup(self, e):
@@ -591,7 +650,8 @@ class Gui(GridLayout):
         content = SaveDialog(save=lambda path, filename: self.save_xl(path, filename, problem),
                              dismiss=self.dismiss_popup)
         self._popup = Popup(title="Save file", content=content,
-                            size_hint=(0.9, 0.9))
+                            size_hint=(0.9, 0.9),
+                            background="src/images/colors/base1.png")
         self._popup.open()
 
     def save_xl(self, path, filename, problem):
@@ -944,6 +1004,7 @@ class Simplex:
 
 class SimplexApp(App):
     def build(self):
+        Window.clearcolor = [0.0, 0.16862745098039217, 0.21176470588235294, 1.0]
         gui = Gui(cols=2,
                   size_hint=(None, None), width=Window.width)
         scroll_view = ScrollView(size_hint=(None, None), size=(Window.width, Window.height), do_scroll_x=True)
