@@ -1,9 +1,11 @@
 # Generated from /home/zetsubou/Projects/Python/Simplex method/m.g4 by ANTLR 4.7
 # encoding: utf-8
-from antlr4 import *
-from io import StringIO
-from typing.io import TextIO
 import sys
+from io import StringIO
+
+from antlr4 import *
+from typing.io import TextIO
+
 
 def serializedATN():
     with StringIO() as buf:
@@ -33,23 +35,22 @@ def serializedATN():
         return buf.getvalue()
 
 
-class mParser ( Parser ):
-
+class mParser(Parser):
     grammarFileName = "m.g4"
 
     atn = ATNDeserializer().deserialize(serializedATN())
 
-    decisionsToDFA = [ DFA(ds, i) for i, ds in enumerate(atn.decisionToState) ]
+    decisionsToDFA = [DFA(ds, i) for i, ds in enumerate(atn.decisionToState)]
 
     sharedContextCache = PredictionContextCache()
 
-    literalNames = [ "<INVALID>", "'('", "')'", "<INVALID>", "<INVALID>", 
-                     "'>'", "'>='", "'<'", "'<='", "'m'", "'+'", "'-'", 
-                     "'*'" ]
+    literalNames = ["<INVALID>", "'('", "')'", "<INVALID>", "<INVALID>",
+                    "'>'", "'>='", "'<'", "'<='", "'m'", "'+'", "'-'",
+                    "'*'"]
 
-    symbolicNames = [ "<INVALID>", "<INVALID>", "<INVALID>", "INT", "FLOAT", 
-                      "GT", "GE", "LT", "LE", "M", "ADD", "SUB", "MUL", 
-                      "WS" ]
+    symbolicNames = ["<INVALID>", "<INVALID>", "<INVALID>", "INT", "FLOAT",
+                     "GT", "GE", "LT", "LE", "M", "ADD", "SUB", "MUL",
+                     "WS"]
 
     RULE_expression = 0
     RULE_op_add = 1
@@ -58,64 +59,61 @@ class mParser ( Parser ):
     RULE_atom = 4
     RULE_start_rule = 5
 
-    ruleNames =  [ "expression", "op_add", "op_mul", "dummy_unary_add", 
-                   "atom", "start_rule" ]
+    ruleNames = ["expression", "op_add", "op_mul", "dummy_unary_add",
+                 "atom", "start_rule"]
 
     EOF = Token.EOF
-    T__0=1
-    T__1=2
-    INT=3
-    FLOAT=4
-    GT=5
-    GE=6
-    LT=7
-    LE=8
-    M=9
-    ADD=10
-    SUB=11
-    MUL=12
-    WS=13
+    T__0 = 1
+    T__1 = 2
+    INT = 3
+    FLOAT = 4
+    GT = 5
+    GE = 6
+    LT = 7
+    LE = 8
+    M = 9
+    ADD = 10
+    SUB = 11
+    MUL = 12
+    WS = 13
 
-    def __init__(self, input:TokenStream, output:TextIO = sys.stdout):
+    def __init__(self, input: TokenStream, output: TextIO = sys.stdout):
         super().__init__(input, output)
         self.checkVersion("4.7")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
 
-
-
     class ExpressionContext(ParserRuleContext):
 
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(self, parser, parent: ParserRuleContext = None, invokingState: int = -1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def op_add(self, i:int=None):
+        def op_add(self, i: int = None):
             if i is None:
                 return self.getTypedRuleContexts(mParser.Op_addContext)
             else:
-                return self.getTypedRuleContext(mParser.Op_addContext,i)
+                return self.getTypedRuleContext(mParser.Op_addContext, i)
 
-
-        def GT(self, i:int=None):
+        def GT(self, i: int = None):
             if i is None:
                 return self.getTokens(mParser.GT)
             else:
                 return self.getToken(mParser.GT, i)
 
-        def LT(self, i:int=None):
+        def LT(self, i: int = None):
             if i is None:
                 return self.getTokens(mParser.LT)
             else:
                 return self.getToken(mParser.LT, i)
 
-        def GE(self, i:int=None):
+        def GE(self, i: int = None):
             if i is None:
                 return self.getTokens(mParser.GE)
             else:
                 return self.getToken(mParser.GE, i)
 
-        def LE(self, i:int=None):
+        def LE(self, i: int = None):
             if i is None:
                 return self.getTokens(mParser.LE)
             else:
@@ -124,20 +122,17 @@ class mParser ( Parser ):
         def getRuleIndex(self):
             return mParser.RULE_expression
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitExpression" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitExpression"):
                 return visitor.visitExpression(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def expression(self):
 
         localctx = mParser.ExpressionContext(self, self._ctx, self.state)
         self.enterRule(localctx, 0, self.RULE_expression)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 12
@@ -145,10 +140,12 @@ class mParser ( Parser ):
             self.state = 17
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while (((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << mParser.GT) | (1 << mParser.GE) | (1 << mParser.LT) | (1 << mParser.LE))) != 0):
+            while (((_la) & ~0x3f) == 0 and (
+                (1 << _la) & ((1 << mParser.GT) | (1 << mParser.GE) | (1 << mParser.LT) | (1 << mParser.LE))) != 0):
                 self.state = 13
                 _la = self._input.LA(1)
-                if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << mParser.GT) | (1 << mParser.GE) | (1 << mParser.LT) | (1 << mParser.LE))) != 0)):
+                if not ((((_la) & ~0x3f) == 0 and ((1 << _la) & (
+                            (1 << mParser.GT) | (1 << mParser.GE) | (1 << mParser.LT) | (1 << mParser.LE))) != 0)):
                     self._errHandler.recoverInline(self)
                 else:
                     self._errHandler.reportMatch(self)
@@ -169,24 +166,23 @@ class mParser ( Parser ):
 
     class Op_addContext(ParserRuleContext):
 
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(self, parser, parent: ParserRuleContext = None, invokingState: int = -1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def op_mul(self, i:int=None):
+        def op_mul(self, i: int = None):
             if i is None:
                 return self.getTypedRuleContexts(mParser.Op_mulContext)
             else:
-                return self.getTypedRuleContext(mParser.Op_mulContext,i)
+                return self.getTypedRuleContext(mParser.Op_mulContext, i)
 
-
-        def ADD(self, i:int=None):
+        def ADD(self, i: int = None):
             if i is None:
                 return self.getTokens(mParser.ADD)
             else:
                 return self.getToken(mParser.ADD, i)
 
-        def SUB(self, i:int=None):
+        def SUB(self, i: int = None):
             if i is None:
                 return self.getTokens(mParser.SUB)
             else:
@@ -195,20 +191,17 @@ class mParser ( Parser ):
         def getRuleIndex(self):
             return mParser.RULE_op_add
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitOp_add" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitOp_add"):
                 return visitor.visitOp_add(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def op_add(self):
 
         localctx = mParser.Op_addContext(self, self._ctx, self.state)
         self.enterRule(localctx, 2, self.RULE_op_add)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 20
@@ -216,10 +209,10 @@ class mParser ( Parser ):
             self.state = 25
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la==mParser.ADD or _la==mParser.SUB:
+            while _la == mParser.ADD or _la == mParser.SUB:
                 self.state = 21
                 _la = self._input.LA(1)
-                if not(_la==mParser.ADD or _la==mParser.SUB):
+                if not (_la == mParser.ADD or _la == mParser.SUB):
                     self._errHandler.recoverInline(self)
                 else:
                     self._errHandler.reportMatch(self)
@@ -240,18 +233,17 @@ class mParser ( Parser ):
 
     class Op_mulContext(ParserRuleContext):
 
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(self, parser, parent: ParserRuleContext = None, invokingState: int = -1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def atom(self, i:int=None):
+        def atom(self, i: int = None):
             if i is None:
                 return self.getTypedRuleContexts(mParser.AtomContext)
             else:
-                return self.getTypedRuleContext(mParser.AtomContext,i)
+                return self.getTypedRuleContext(mParser.AtomContext, i)
 
-
-        def MUL(self, i:int=None):
+        def MUL(self, i: int = None):
             if i is None:
                 return self.getTokens(mParser.MUL)
             else:
@@ -260,20 +252,17 @@ class mParser ( Parser ):
         def getRuleIndex(self):
             return mParser.RULE_op_mul
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitOp_mul" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitOp_mul"):
                 return visitor.visitOp_mul(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def op_mul(self):
 
         localctx = mParser.Op_mulContext(self, self._ctx, self.state)
         self.enterRule(localctx, 4, self.RULE_op_mul)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 28
@@ -281,7 +270,7 @@ class mParser ( Parser ):
             self.state = 33
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la==mParser.MUL:
+            while _la == mParser.MUL:
                 self.state = 29
                 self.match(mParser.MUL)
                 self.state = 30
@@ -300,17 +289,17 @@ class mParser ( Parser ):
 
     class Dummy_unary_addContext(ParserRuleContext):
 
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(self, parser, parent: ParserRuleContext = None, invokingState: int = -1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def ADD(self, i:int=None):
+        def ADD(self, i: int = None):
             if i is None:
                 return self.getTokens(mParser.ADD)
             else:
                 return self.getToken(mParser.ADD, i)
 
-        def SUB(self, i:int=None):
+        def SUB(self, i: int = None):
             if i is None:
                 return self.getTokens(mParser.SUB)
             else:
@@ -319,29 +308,26 @@ class mParser ( Parser ):
         def getRuleIndex(self):
             return mParser.RULE_dummy_unary_add
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitDummy_unary_add" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitDummy_unary_add"):
                 return visitor.visitDummy_unary_add(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def dummy_unary_add(self):
 
         localctx = mParser.Dummy_unary_addContext(self, self._ctx, self.state)
         self.enterRule(localctx, 6, self.RULE_dummy_unary_add)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 39
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la==mParser.ADD or _la==mParser.SUB:
+            while _la == mParser.ADD or _la == mParser.SUB:
                 self.state = 36
                 _la = self._input.LA(1)
-                if not(_la==mParser.ADD or _la==mParser.SUB):
+                if not (_la == mParser.ADD or _la == mParser.SUB):
                     self._errHandler.recoverInline(self)
                 else:
                     self._errHandler.reportMatch(self)
@@ -360,20 +346,19 @@ class mParser ( Parser ):
 
     class AtomContext(ParserRuleContext):
 
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(self, parser, parent: ParserRuleContext = None, invokingState: int = -1):
             super().__init__(parent, invokingState)
             self.parser = parser
-            self.p = None # Dummy_unary_addContext
-            self.i = None # Token
-            self.f = None # Token
-            self.m = None # Token
-            self.e = None # ExpressionContext
-            self.c = None # Token
-            self.m2 = None # Token
+            self.p = None  # Dummy_unary_addContext
+            self.i = None  # Token
+            self.f = None  # Token
+            self.m = None  # Token
+            self.e = None  # ExpressionContext
+            self.c = None  # Token
+            self.m2 = None  # Token
 
         def dummy_unary_add(self):
-            return self.getTypedRuleContext(mParser.Dummy_unary_addContext,0)
-
+            return self.getTypedRuleContext(mParser.Dummy_unary_addContext, 0)
 
         def INT(self):
             return self.getToken(mParser.INT, 0)
@@ -385,31 +370,27 @@ class mParser ( Parser ):
             return self.getToken(mParser.M, 0)
 
         def expression(self):
-            return self.getTypedRuleContext(mParser.ExpressionContext,0)
-
+            return self.getTypedRuleContext(mParser.ExpressionContext, 0)
 
         def getRuleIndex(self):
             return mParser.RULE_atom
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitAtom" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitAtom"):
                 return visitor.visitAtom(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def atom(self):
 
         localctx = mParser.AtomContext(self, self._ctx, self.state)
         self.enterRule(localctx, 8, self.RULE_atom)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 60
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,4,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input, 4, self._ctx)
             if la_ == 1:
                 self.state = 42
                 localctx.p = self.dummy_unary_add()
@@ -448,7 +429,7 @@ class mParser ( Parser ):
                 self.state = 57
                 localctx.c = self._input.LT(1)
                 _la = self._input.LA(1)
-                if not(_la==mParser.INT or _la==mParser.FLOAT):
+                if not (_la == mParser.INT or _la == mParser.FLOAT):
                     localctx.c = self._errHandler.recoverInline(self)
                 else:
                     self._errHandler.reportMatch(self)
@@ -468,28 +449,23 @@ class mParser ( Parser ):
 
     class Start_ruleContext(ParserRuleContext):
 
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(self, parser, parent: ParserRuleContext = None, invokingState: int = -1):
             super().__init__(parent, invokingState)
             self.parser = parser
 
         def expression(self):
-            return self.getTypedRuleContext(mParser.ExpressionContext,0)
-
+            return self.getTypedRuleContext(mParser.ExpressionContext, 0)
 
         def getRuleIndex(self):
             return mParser.RULE_start_rule
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitStart_rule" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitStart_rule"):
                 return visitor.visitStart_rule(self)
             else:
                 return visitor.visitChildren(self)
 
-
-
-
     def start_rule(self):
-
         localctx = mParser.Start_ruleContext(self, self._ctx, self.state)
         self.enterRule(localctx, 10, self.RULE_start_rule)
         try:
@@ -503,8 +479,3 @@ class mParser ( Parser ):
         finally:
             self.exitRule()
         return localctx
-
-
-
-
-

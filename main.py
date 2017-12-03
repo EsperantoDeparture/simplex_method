@@ -7,16 +7,15 @@ from kivy.app import App
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle, Line
 from kivy.uix.button import Button
+from kivy.uix.checkbox import CheckBox
 from kivy.uix.dropdown import DropDown
-from kivy.uix.gridlayout import GridLayout
+from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
+from kivy.uix.popup import Popup
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
-from kivy.uix.checkbox import CheckBox
-from kivy.uix.popup import Popup
-from kivy.uix.filechooser import FileChooserListView
-
 from openpyxl import Workbook
 from openpyxl.styles import NamedStyle, Border, Side, PatternFill, Font
 
@@ -26,18 +25,11 @@ from mVisitor import mVisitor
 
 
 class OutputTable(GridLayout):
-    def __init__(self, iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj, entering_variable,
-                 leaving_variable, a, number_of_iterations, **kwargs):
+    def __init__(self, **kwargs):
         super(OutputTable, self).__init__(**kwargs)
-        self.cols = len(variable_names) + 3
 
         self.background_width = None
         self.background_height = None
-
-        self.bind(minimum_height=self.setter('height'))
-        self.bind(minimum_height=lambda x, y: self.resize_background())
-        self.bind(minimum_width=self.setter('width'))
-        self.bind(minimum_width=lambda x, y: self.resize_background())
 
         # Colors for the output table
         self.base1 = list(map(lambda x: (x / 255), [0, 43, 54, 255]))
@@ -45,6 +37,54 @@ class OutputTable(GridLayout):
         self.error = list(map(lambda x: (x / 255), [220, 50, 47, 255]))
         self.pivot = list(map(lambda x: (x / 255), [133, 153, 0, 255]))
         self.highlight = list(map(lambda x: (x / 255), [38, 139, 210, 255]))
+
+    def resize_background(self):
+        self.canvas.before.clear()
+        with self.canvas.before:
+            Color(*self.base1)
+            self.background = Rectangle(
+                pos=(self.x, self.height * (self.number_of_iterations - self.iteration - 1)),
+                size=self.size)
+            Color(*self.base2)
+            Rectangle(
+                pos=(self.x, self.height * (self.number_of_iterations - self.iteration - 1) + self.height - 30),
+                size=(self.width, 30))
+            if self.entering_variable is not None:
+                # Leaving variable's row
+                Color(*self.highlight)
+                self.leaving_variable_row_background = Rectangle(
+                    pos=(200, self.height * (self.number_of_iterations - self.iteration - 1) + 30 * (
+                        self.constraints - self.leaving_variable)),
+                    size=(self.variables * 200, 30))
+                # Entering variable's column
+                Color(*self.highlight)
+                self.entering_variable_row_background = Rectangle(pos=(
+                    200 + self.entering_variable * 200,
+                    30 + self.height * (self.number_of_iterations - self.iteration - 1)),
+                    size=(200, self.constraints * 30))
+                # Pivot
+                Color(*self.pivot)
+                self.pivot_background = Rectangle(
+                    pos=(200 + 200 * self.entering_variable,
+                         self.height * (self.number_of_iterations - self.iteration - 1) + 30 * (
+                             self.constraints - self.leaving_variable)),
+                    size=(200, 30))
+            else:
+                Color(*self.pivot)
+                self.pivot_background = Rectangle(pos=(200 + 200 * self.variables, 30 + 30 * self.constraints),
+                                                  size=(200, 30))
+
+
+class SimplexOutputTable(OutputTable):
+    def __init__(self, iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj, entering_variable,
+                 leaving_variable, a, number_of_iterations, **kwargs):
+        super(SimplexOutputTable, self).__init__(**kwargs)
+        self.cols = len(variable_names) + 3
+
+        self.bind(minimum_height=self.setter('height'))
+        self.bind(minimum_width=self.setter('width'))
+        self.bind(minimum_height=lambda x, y: self.resize_background())
+        self.bind(minimum_width=lambda x, y: self.resize_background())
 
         self.background = None
         self.pivot_background = None
@@ -109,41 +149,88 @@ class OutputTable(GridLayout):
             self.add_widget(Label(text=x, size_hint=(None, None), size=(200, 30)))
         self.add_widget(Label(size_hint=(None, None), size=(100, 30)))
 
+
+class AssignmentMinOutputTable(OutputTable):
+    def __init__(self, costs, m, m_type, names, **kwargs):
+        super(AssignmentMinOutputTable, self).__init__(**kwargs)
+        self.n = len(costs)
+        self.m_type = m_type
+        self.cols = self.n + (2 if m_type == "Row" else 1)
+
+        self.bind(minimum_height=self.setter('height'))
+        self.bind(minimum_width=self.setter('width'))
+        self.bind(minimum_height=lambda x, y: self.resize_background())
+        self.bind(minimum_width=lambda x, y: self.resize_background())
+
+        self.add_widget(Label(text="Names", size_hint=(None, None), size=(200, 30)))
+        for i in range(self.n):
+            self.add_widget(Label(text=names[i], size_hint=(None, None), size=(200, 30)))
+        if m_type == "Row":
+            self.add_widget(Label(text="Row. min", size_hint=(None, None), size=(200, 30)))
+
+        for i in range(len(costs)):
+            self.add_widget(Label(text=names[self.n + i], size_hint=(None, None), size=(200, 30)))
+            for j in range(len(costs)):
+                self.add_widget(Label(text=str(costs[i][j]), size_hint=(None, None), size=(200, 30)))
+            if m_type == "Row":
+                self.add_widget(Label(text=str(m[i]), size_hint=(None, None), size=(200, 30)))
+
+        if m_type == "Column":
+            self.add_widget(Label(text="Col. min", size_hint=(None, None), size=(200, 30)))
+            for x in m:
+                self.add_widget(Label(text=str(x), size_hint=(None, None), size=(200, 30)))
+
     def resize_background(self):
         self.canvas.before.clear()
         with self.canvas.before:
-            Color(*self.base1)
-            self.background = Rectangle(
-                pos=(self.x, self.height * (self.number_of_iterations - self.iteration - 1)),
-                size=self.size)
             Color(*self.base2)
-            Rectangle(
-                pos=(self.x, self.height * (self.number_of_iterations - self.iteration - 1) + self.height - 30),
-                size=(self.width, 30))
-            if self.entering_variable is not None:
-                # Leaving variable's row
-                Color(*self.highlight)
-                self.leaving_variable_row_background = Rectangle(
-                    pos=(200, self.height * (self.number_of_iterations - self.iteration - 1) + 30 * (
-                        self.constraints - self.leaving_variable)),
-                    size=(self.variables * 200, 30))
-                # Entering variable's column
-                Color(*self.highlight)
-                self.entering_variable_row_background = Rectangle(pos=(
-                    200 + self.entering_variable * 200,
-                    30 + self.height * (self.number_of_iterations - self.iteration - 1)),
-                    size=(200, self.constraints * 30))
-                # Pivot
-                Color(*self.pivot)
-                self.pivot_background = Rectangle(
-                    pos=(200 + 200 * self.entering_variable,
-                         self.height * (self.number_of_iterations - self.iteration - 1) + 30 * (
-                             self.constraints - self.leaving_variable)),
-                    size=(200, 30))
-            else:
-                Color(*self.pivot)
-                self.pivot_background = Rectangle(pos=(200 + 200 * self.variables, 30 + 30 * self.constraints),
-                                                  size=(200, 30))
+            Rectangle(size=(200 * self.n, 30 * self.n),
+                      pos=(200, self.y + (30 if self.m_type == "Column" else 60)))
+
+
+class AssignmentLineOutputTable(OutputTable):
+    def __init__(self, costs, names, h, v, **kwargs):
+        super(AssignmentLineOutputTable, self).__init__(**kwargs)
+        self.h = h
+        self.v = v
+        self.n = len(costs)
+        self.cols = self.n + 1
+
+        self.bind(minimum_height=self.setter('height'))
+        self.bind(minimum_width=self.setter('width'))
+        self.bind(minimum_height=lambda x, y: self.resize_background())
+        self.bind(minimum_width=lambda x, y: self.resize_background())
+
+        self.add_widget(Label(text="Names", size_hint=(None, None), size=(200, 30)))
+        for i in range(self.n):
+            self.add_widget(Label(text=names[i], size_hint=(None, None), size=(200, 30)))
+
+        for i in range(len(costs)):
+            self.add_widget(Label(text=names[self.n + i], size_hint=(None, None), size=(200, 30)))
+            for j in range(len(costs)):
+                self.add_widget(Label(text=str(costs[i][j]), size_hint=(None, None), size=(200, 30)))
+
+    def resize_background(self):
+        self.canvas.before.clear()
+        self.canvas.after.clear()
+
+        with self.canvas.before:
+            Color(*self.base2)
+            Rectangle(size=(200 * self.n, 30 * self.n),
+                      pos=(200, self.y + 30))
+
+        for i in range(len(self.h)):
+            if self.h[i][0]:
+                with self.canvas.after:
+                    Color(*self.error)
+                    Line(points=(200, self.y + 30 * (len(self.h) - i) + 15, 200 * self.n,
+                                 self.y + 30 * (len(self.h) - i) + 15), width=1)
+
+        for i in range(len(self.v)):
+            if self.v[i][0]:
+                with self.canvas.after:
+                    Color(*self.error)
+                    Line(points=(200 * (i + 1) + 100, self.y + 30 * self.n, 200 * (i + 1) + 100, self.y + 30), width=1)
 
 
 class Constraint(GridLayout):
@@ -269,6 +356,11 @@ class Gui(GridLayout):
 
         # How many variables has the problem?
         self.add_widget(
+            Label(text="For LP and ILP problems", size_hint=(None, None), size=(400, 30)))
+        self.add_widget(
+            Label(text="", size_hint=(None, None), size=(400, 30)))
+
+        self.add_widget(
             Label(text="How many decision variables has the problem?", size_hint=(None, None), size=(400, 30)))
         self.number_of_variables = TextInput(size_hint=(None, None), size=(400, 30), background_color=self.base2,
                                              border=(0, 0, 0, 0), foreground_color=(1, 1, 1, 1))
@@ -276,14 +368,32 @@ class Gui(GridLayout):
 
         # How many constraints?
         self.add_widget(
-            Label(text="How many restrictions?"))
+            Label(text="How many constraints?"))
         self.number_of_constraints = TextInput(size_hint=(None, None), size=(400, 30), background_color=self.base2,
                                                border=(0, 0, 0, 0), foreground_color=(1, 1, 1, 1))
         self.add_widget(self.number_of_constraints)
 
+        self.add_widget(
+            Label(text="", size_hint=(None, None), size=(400, 30)))
+
+        self.add_widget(
+            Label(text="", size_hint=(None, None), size=(400, 30)))
+
+        # Assignment problems input
+        self.add_widget(
+            Label(text="For assignment problems", size_hint=(None, None), size=(400, 30)))
+        self.add_widget(
+            Label(text="", size_hint=(None, None), size=(400, 30)))
+
+        self.add_widget(
+            Label(text="Size of the cost matrix"))
+        self.cost_matrix_size = TextInput(size_hint=(None, None), size=(400, 30), background_color=self.base2,
+                                          border=(0, 0, 0, 0), foreground_color=(1, 1, 1, 1))
+        self.add_widget(self.cost_matrix_size)
+
         # Type of the problem
         self.problem_nature = DropDown()
-        for x in ["Linear Programming", "Integer Linear Programming"]:
+        for x in ["Linear Programming", "Integer Linear Programming", "Assignment Problem"]:
             btn = Button(text=x, size_hint_y=None, height=30,
                          background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
                          background_normal="",
@@ -324,86 +434,110 @@ class Gui(GridLayout):
                 size=self.size)
 
     def gen_input_table(self, e):
-        variables = int(self.number_of_variables.text)
-        constraints = int(self.number_of_constraints.text)
         self.clear_widgets()
-        self.cols = 1
-
-        self.type = DropDown()
-        for x in ["Maximize", "Minimize"]:
-            btn = Button(text=x, size_hint_y=None, height=30,
-                         background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
-                         background_normal="",
-                         border=(0, 0, 0, 0))
-            btn.bind(on_release=lambda btn: self.type.select(btn.text))
-            self.type.add_widget(btn)
-        self.open_problem_type = Button(text="Maximize", size_hint=(None, None), size=(100, 30),
-                                        background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
-                                        background_normal="",
-                                        border=(0, 0, 0, 0))
-        self.open_problem_type.bind(on_release=self.type.open)
-        self.type.bind(on_select=lambda instance, x: setattr(self.open_problem_type, "text", x))
-
-        self.add_widget(self.open_problem_type)
-
-        self.fo = GridLayout(cols=(variables + 1), padding=10, spacing=10,
-                             size_hint=(None, None), width=Window.width)
-
-        self.fo.bind(minimum_height=self.setter('height'))
-        self.fo.bind(minimum_width=self.setter('width'))
-
-        self.fo.add_widget(Label(text="Objective funtion: ", size_hint=(None, None), size=(150, 30)))
-        for i in range(1, variables + 1):
-            self.fo.add_widget(Variable(i, i == variables, cols=2,
-                                        size_hint=(None, None), size=(200, 30)))
-
-        self.add_widget(self.fo)
-
-        self.add_widget(Label(text="Subject to:", size_hint=(None, None), size=(200, 50)))
-
-        self.constraints = []
-
-        for i in range(1, constraints + 1):
-            self.constraints.append(Constraint(variables, cols=(variables + 2), padding=10, spacing=10,
-                                               size_hint=(None, None), width=Window.width))
-            self.add_widget(self.constraints[i - 1])
-
-        self.integer_check = []
-        if self.open_problem_nature.text == "Integer Linear Programming":
-            self.add_widget(
-                Label(text="The following variables must be integers:", size_hint=(None, None), size=(400, 30)))
-            for i in range(variables):
-                new_container = GridLayout(cols=2, size_hint=(None, None), width=125)
-                new_container.add_widget(Label(text=("x" + str(i)), size=(100, 30)))
-                new_check_box = CheckBox()
-                self.integer_check.append(new_check_box)
-                new_container.add_widget(new_check_box)
-                self.add_widget(new_container)
-
-        self.submit = Button(size_hint=(None, None), size=(400, 30),
+        if self.open_problem_nature.text == "Integer Linear Programming" or self.open_problem_nature.text == "Linear Programming":
+            self.cols = 1
+            variables = int(self.number_of_variables.text)
+            constraints = int(self.number_of_constraints.text)
+            self.type = DropDown()
+            for x in ["Maximize", "Minimize"]:
+                btn = Button(text=x, size_hint_y=None, height=30,
                              background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
                              background_normal="",
                              border=(0, 0, 0, 0))
-        self.submit.bind(on_release=self.solve)
-        self.submit.text = "Continue"
-        self.add_widget(self.submit)
+                btn.bind(on_release=lambda btn: self.type.select(btn.text))
+                self.type.add_widget(btn)
+            self.open_problem_type = Button(text="Maximize", size_hint=(None, None), size=(100, 30),
+                                            background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                                            background_normal="",
+                                            border=(0, 0, 0, 0))
+            self.open_problem_type.bind(on_release=self.type.open)
+            self.type.bind(on_select=lambda instance, x: setattr(self.open_problem_type, "text", x))
+
+            self.add_widget(self.open_problem_type)
+
+            self.fo = GridLayout(cols=(variables + 1), padding=10, spacing=10,
+                                 size_hint=(None, None), width=Window.width)
+
+            self.fo.bind(minimum_height=self.setter('height'))
+            self.fo.bind(minimum_width=self.setter('width'))
+
+            self.fo.add_widget(Label(text="Objective funtion: ", size_hint=(None, None), size=(150, 30)))
+            for i in range(1, variables + 1):
+                self.fo.add_widget(Variable(i, i == variables, cols=2,
+                                            size_hint=(None, None), size=(200, 30)))
+
+            self.add_widget(self.fo)
+
+            self.add_widget(Label(text="Subject to:", size_hint=(None, None), size=(200, 50)))
+
+            self.constraints = []
+
+            for i in range(1, constraints + 1):
+                self.constraints.append(Constraint(variables, cols=(variables + 2), padding=10, spacing=10,
+                                                   size_hint=(None, None), width=Window.width))
+                self.add_widget(self.constraints[i - 1])
+
+            self.integer_check = []
+            if self.open_problem_nature.text == "Integer Linear Programming":
+                self.add_widget(
+                    Label(text="The following variables must be integers:", size_hint=(None, None), size=(400, 30)))
+                for i in range(1, variables + 1):
+                    new_container = GridLayout(cols=2, size_hint=(None, None), width=125)
+                    new_container.add_widget(Label(text=("x" + str(i)), size=(100, 30)))
+                    new_check_box = CheckBox()
+                    self.integer_check.append(new_check_box)
+                    new_container.add_widget(new_check_box)
+                    self.add_widget(new_container)
+
+            self.submit = Button(size_hint=(None, None), size=(400, 30),
+                                 background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                                 background_normal="",
+                                 border=(0, 0, 0, 0))
+            self.submit.bind(on_release=self.solve)
+            self.submit.text = "Continue"
+            self.add_widget(self.submit)
+
+        elif self.open_problem_nature.text == "Assignment Problem":
+            if self.cost_matrix_size.text == "":
+                self.solve(None)
+                return
+            n = int(self.cost_matrix_size.text)
+            self.cols = n + 1
+            self.add_widget(Label(text="Names", size_hint=(None, None), size=(200, 30)))
+            for i in range(n):
+                self.add_widget(TextInput(size_hint=(None, None), size=(200, 30), multiline=False,
+                                          background_color=list(map(lambda x: (x / 255), [7, 54, 66, 255])),
+                                          border=(0, 0, 0, 0), foreground_color=(1, 1, 1, 1)))
+            for i in range((int(n) + 1) * n):
+                self.add_widget(TextInput(size_hint=(None, None), size=(200, 30), multiline=False,
+                                          background_color=list(map(lambda x: (x / 255), [7, 54, 66, 255])),
+                                          border=(0, 0, 0, 0), foreground_color=(1, 1, 1, 1)))
+            self.add_widget(Button(text="Continue", on_release=self.solve, size_hint=(None, None), size=(200, 30),
+                                   background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                                   background_normal="",
+                                   border=(0, 0, 0, 0)))
+
+        elif self.open_problem_nature.text == "Transportation Problem":
+            pass
 
     def solve(self, e):
-        variables = int(self.number_of_variables.text)
-        constraints = int(self.number_of_constraints.text)
-        self.clear_widgets()
-        problem_type = self.open_problem_type.text
         problem_nature = self.open_problem_nature.text
-        # Coefficients of the objective function
-        cj = [str(x.get()) for x in
-              filter(lambda y: type(y) == Variable, self.fo.children)]
-        cj.reverse()
-        a = [x.get_coefficients() for x in self.constraints]  # Coefficients of the constraints' variables
-        b = [x.get_rhs() for x in self.constraints]  # Rhs
-        constraint_types = [x.get_type() for x in self.constraints]
-        variable_names = ["x" + str(i) for i in range(1, variables + 1)]
-        iteration = 0
         if problem_nature == "Linear Programming":
+            problem_type = self.open_problem_type.text
+            variables = int(self.number_of_variables.text)
+            constraints = int(self.number_of_constraints.text)
+            self.clear_widgets()
+            # Coefficients of the objective function
+            cj = [str(x.get()) for x in
+                  filter(lambda y: type(y) == Variable, self.fo.children)]
+            cj.reverse()
+            a = [x.get_coefficients() for x in self.constraints]  # Coefficients of the constraints' variables
+            b = [x.get_rhs() for x in self.constraints]  # Rhs
+            constraint_types = [x.get_type() for x in self.constraints]
+            variable_names = ["x" + str(i) for i in range(1, variables + 1)]
+            iteration = 0
+
             s = Simplex(variables, constraints, cj, a, b, constraint_types, variable_names, problem_type)
             output_tables, solution, basic_vars = s.solve()
             self.add_widget(Label(text="Final solution:", size_hint=(None, None), size=(100, 30)))
@@ -429,7 +563,21 @@ class Gui(GridLayout):
             self.add_widget(save_to_png)
             for i in range(len(output_tables)):
                 self.add_widget(output_tables[i])
-        else:  # Integer linear programming
+        elif problem_nature == "Integer Linear Programming":  # Integer linear
+            problem_type = self.open_problem_type.text
+            variables = int(self.number_of_variables.text)
+            constraints = int(self.number_of_constraints.text)
+            self.clear_widgets()
+            # Coefficients of the objective function
+            cj = [str(x.get()) for x in
+                  filter(lambda y: type(y) == Variable, self.fo.children)]
+            cj.reverse()
+            a = [x.get_coefficients() for x in self.constraints]  # Coefficients of the constraints' variables
+            b = [x.get_rhs() for x in self.constraints]  # Rhs
+            constraint_types = [x.get_type() for x in self.constraints]
+            variable_names = ["x" + str(i) for i in range(1, variables + 1)]
+            iteration = 0
+
             integer_check = [x.active for x in self.integer_check]
             height = 0
             # Initial problem
@@ -437,6 +585,7 @@ class Gui(GridLayout):
                                  variable_names, problem_type)]]
             optimal_solution_aux = -math.inf if problem_type == "Maximize" else math.inf
             optimal_solution = None
+            optimal_solution_coord = []
             while True:
                 for x in problems[height]:
                     if x is not None:
@@ -475,10 +624,12 @@ class Gui(GridLayout):
                                     if optimal_solution_aux < solution[0]:
                                         optimal_solution_aux = solution[0]
                                         optimal_solution = solution
+                                        optimal_solution_coord = [height, i]
                                 else:
                                     if optimal_solution_aux > solution[0]:
                                         optimal_solution_aux = solution[0]
                                         optimal_solution = solution
+                                        optimal_solution_coord = [height, i]
                                 problems[height + 1].append(None)
                                 problems[height + 1].append(None)
                 if not any(problems[height + 1]):
@@ -541,7 +692,7 @@ class Gui(GridLayout):
                             color = self.error
                         else:
                             color = self.base2
-                            if problems[i][j].solution[0] == optimal_solution[0]:
+                            if i == optimal_solution_coord[0] and j == optimal_solution_coord[1]:
                                 color = self.highlight
                             text = ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + str(
                                 problems[i][j].solution[
@@ -630,6 +781,136 @@ class Gui(GridLayout):
             save_btn.bind(on_release=self.show_save_png)
             layout.add_widget(save_btn)
             self.add_widget(layout)
+        elif problem_nature == "Assignment Problem":
+            self.cols = 1
+            if self.cost_matrix_size.text != "":
+                n = int(self.cost_matrix_size.text)
+                names = [x.text for x in
+                         filter(lambda y: type(y) == TextInput and y.text.isalpha(), self.children)]
+                names.reverse()
+                values = [float(x.text) for x in
+                          filter(lambda y: type(y) == TextInput and not y.text.isalpha(), self.children)]
+                values.reverse()
+                vaux = values
+                values = [[vaux[j] for j in range(i, i + n)] for i in range(0, len(vaux), n)]
+
+            else:
+                n = 3
+                names = ["x", "y", "z", "a", "b", "c"]
+                values = [[10.0, 9.0, 5.0], [9.0, 8.0, 3.0], [6.0, 4.0, 7.0]]
+
+            print(names)
+            print(values)
+            # Iterate until the job is done
+
+            # 1. Row min
+            rm = [min(x) for x in values]
+            for i in range(len(values)):
+                if rm[i] != 0:
+                    for j in range(len(values)):
+                        values[i][j] -= rm[i]
+
+            self.add_widget(Label(text="1. Subtract Row Minimal", size_hint=(None, None), size=(200, 30)))
+
+            self.add_widget(
+                AssignmentMinOutputTable(values, rm, "Row", names, size_hint=(None, None), width=Window.width))
+
+            # 2. Col min
+            cm = [min(x) for x in [[values[j][i] for j in range(n)] for i in range(n)]]
+            for i in range(len(values)):
+                if cm[i] != 0:
+                    for j in range(len(values)):
+                        values[j][i] -= cm[i]
+
+            self.add_widget(Label(text="2. Subtract Column Minimal", size_hint=(None, None), size=(200, 30)))
+
+            self.add_widget(
+                AssignmentMinOutputTable(values, cm, "Column", names, size_hint=(None, None), width=Window.width))
+
+            while True:
+                # 3. Lines
+                h = [[1 if 0.0 in x else 0, x.count(0.0)] for x in values]  # horizontal lines
+                # Vertical lines
+                v = [[1 if 0.0 in x else 0, x.count(0.0)] for x in
+                     [[values[j][i] for j in range(n)] for i in range(n)]]
+                # Removing unnecessary lines
+                for i in range(len(v)):
+                    if v[i][1] == 1:
+                        for j in range(len(h)):
+                            if values[j][i] == 0 and (h[j][1] > 1):
+                                v[i][0] = 0
+                                break
+                for i in range(len(h)):
+                    for j in range(len(v)):
+                        if values[i][j] == 0 and v[j][0] == 1:
+                            h[i][1] -= 1
+                    if h[i][1] == 0:
+                        h[i][0] = 0
+
+                self.add_widget(
+                    AssignmentLineOutputTable(values, names, h, v, size_hint=(None, None), width=Window.width))
+
+                # If the number of lines is equal to n, we stop, if not, we continue with step 4
+                lines = 0
+                for i in range(len(values)):
+                    lines += v[i][0] + h[i][0]
+                if lines == len(values):
+                    print("optimal solution found!")
+                    break
+                # 4. Create additional zeros
+                # 4.1 minimum value not covered by a line
+                min_value = math.inf
+                for i in range(len(values)):
+                    for j in range(len(values)):
+                        if (v[j][0] + h[i][0]) == 0 and min_value > values[i][j]:
+                            min_value = values[i][j]
+                # 4.2 subtract the minimum value from all uncovered values (and add it to the elements
+                # covered by two lines)
+                for i in range(len(values)):
+                    for j in range(len(values)):
+                        if (v[j][0] + h[i][0]) == 0:
+                            values[i][j] -= min_value
+                        elif (v[j][0] + h[i][0]) == 2:
+                            values[i][j] += min_value
+
+            solution = []
+            zeroes = [x.count(0.0) for x in values]
+            min_number_of_zeroes = math.inf
+
+            def min_z():
+                nonlocal min_number_of_zeroes
+                nonlocal values
+                for i in range(len(values)):
+                    z = values[i].count(0.0)
+                    if i not in solution and z < min_number_of_zeroes and z != 0:
+                        min_number_of_zeroes = z
+
+            while len(solution) < len(values):
+
+                for i in range(len(values)):
+                    cmp = [x[1] for x in solution]
+
+                    for j in range(len(values)):
+                        if values[i][j] == 0.0 and j not in cmp and zeroes[
+                                i] == min_number_of_zeroes:
+                            solution.append([i, j])
+                            cmp.append(j)
+                            values[i][j] = -1
+                            for k in range(j + 1, len(values)):
+                                if values[i][k] == 0.0:
+                                    values[i][k] = -1
+                            zeroes[i] = math.inf
+                            break
+
+                    for j in range(len(values)):
+                        for k in range(len(values)):
+                            if values[j][k] == 0.0 and k in cmp:
+                                zeroes[j] -= 1
+                                values[j][k] = -1
+
+                    min_number_of_zeroes = math.inf
+                    min_z()
+            print(solution)
 
     def show_save_png(self, btn):
         content = SaveDialog(save=self.save_png, dismiss=self.dismiss_popup)
@@ -899,8 +1180,8 @@ class Simplex:
                         break
 
                 self.output_tables.append(
-                    OutputTable(iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj,
-                                None, None, a, 0, size_hint=(None, None), width=Window.width))
+                    SimplexOutputTable(iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj,
+                                       None, None, a, 0, size_hint=(None, None), width=Window.width))
                 break
 
             # Find the entering variable
@@ -916,21 +1197,23 @@ class Simplex:
             min_ratio = math.inf
             leaving_variable_index = None
             for i in range(len(b)):
-                if a[i][entering_variable_index] > 0:
+                if a[i][entering_variable_index] > 0 and b[i] >= 0:
                     if min_ratio > b[i] / a[i][entering_variable_index]:
                         min_ratio = b[i] / a[i][entering_variable_index]
                         leaving_variable_index = i
             # 2. Unbounded solution
             if leaving_variable_index is None:
                 special = True
+                print("unbounded solution")
 
             # Get the pivot
             pivot = a[leaving_variable_index][entering_variable_index]
 
             # Get the new output table
             self.output_tables.append(
-                OutputTable(iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj, entering_variable_index,
-                            leaving_variable_index, a, 0, size_hint=(None, None), width=Window.width))
+                SimplexOutputTable(iteration, cj, variable_names, zj, cb, basic_vars, b, cj_minus_zj,
+                                   entering_variable_index,
+                                   leaving_variable_index, a, 0, size_hint=(None, None), width=Window.width))
 
             # Then we pivot
             for i in range(len(a)):
