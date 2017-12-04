@@ -14,6 +14,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
+from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.textinput import TextInput
 from openpyxl import Workbook
@@ -150,6 +151,34 @@ class SimplexOutputTable(OutputTable):
         self.add_widget(Label(size_hint=(None, None), size=(100, 30)))
 
 
+class AssignmentOutputTable(OutputTable):
+    def __init__(self, costs, names, **kwargs):
+        super(AssignmentOutputTable, self).__init__(**kwargs)
+        self.n = len(costs)
+        self.cols = self.n + 1
+
+        self.bind(minimum_height=self.setter('height'))
+        self.bind(minimum_width=self.setter('width'))
+        self.bind(minimum_height=lambda x, y: self.resize_background())
+        self.bind(minimum_width=lambda x, y: self.resize_background())
+
+        self.add_widget(Label(text="Names", size_hint=(None, None), size=(200, 30)))
+        for i in range(self.n):
+            self.add_widget(Label(text=names[i], size_hint=(None, None), size=(200, 30)))
+
+        for i in range(len(costs)):
+            self.add_widget(Label(text=names[self.n + i], size_hint=(None, None), size=(200, 30)))
+            for j in range(len(costs)):
+                self.add_widget(Label(text=str(costs[i][j]), size_hint=(None, None), size=(200, 30)))
+
+    def resize_background(self):
+        self.canvas.before.clear()
+        with self.canvas.before:
+            Color(*self.base2)
+            Rectangle(size=(200 * self.n, 30 * self.n),
+                      pos=(200, self.y))
+
+
 class AssignmentMinOutputTable(OutputTable):
     def __init__(self, costs, m, m_type, names, **kwargs):
         super(AssignmentMinOutputTable, self).__init__(**kwargs)
@@ -185,7 +214,7 @@ class AssignmentMinOutputTable(OutputTable):
         with self.canvas.before:
             Color(*self.base2)
             Rectangle(size=(200 * self.n, 30 * self.n),
-                      pos=(200, self.y + (30 if self.m_type == "Column" else 60)))
+                      pos=(200, self.y + (30 if self.m_type == "Column" else 0)))
 
 
 class AssignmentLineOutputTable(OutputTable):
@@ -217,20 +246,20 @@ class AssignmentLineOutputTable(OutputTable):
         with self.canvas.before:
             Color(*self.base2)
             Rectangle(size=(200 * self.n, 30 * self.n),
-                      pos=(200, self.y + 30))
+                      pos=(200, self.y))
 
         for i in range(len(self.h)):
             if self.h[i][0]:
                 with self.canvas.after:
                     Color(*self.error)
-                    Line(points=(200, self.y + 30 * (len(self.h) - i) + 15, 200 * self.n,
-                                 self.y + 30 * (len(self.h) - i) + 15), width=1)
+                    Line(points=(200, self.y + 30 * (len(self.h) - i - 1) + 14, 200 * (self.n + 1),
+                                 self.y + 30 * (len(self.h) - i - 1) + 14), width=1)
 
         for i in range(len(self.v)):
             if self.v[i][0]:
                 with self.canvas.after:
                     Color(*self.error)
-                    Line(points=(200 * (i + 1) + 100, self.y + 30 * self.n, 200 * (i + 1) + 100, self.y + 30), width=1)
+                    Line(points=(200 * (i + 1) + 100, self.y + 30 * self.n, 200 * (i + 1) + 100, self.y), width=1)
 
 
 class Constraint(GridLayout):
@@ -783,13 +812,21 @@ class Gui(GridLayout):
             self.add_widget(layout)
         elif problem_nature == "Assignment Problem":
             self.cols = 1
+
+            def isfloat(value):
+                try:
+                    float(value)
+                    return True
+                except ValueError:
+                    return False
+
             if self.cost_matrix_size.text != "":
                 n = int(self.cost_matrix_size.text)
                 names = [x.text for x in
-                         filter(lambda y: type(y) == TextInput and y.text.isalpha(), self.children)]
+                         filter(lambda y: type(y) == TextInput and not isfloat(y.text), self.children)]
                 names.reverse()
                 values = [float(x.text) for x in
-                          filter(lambda y: type(y) == TextInput and not y.text.isalpha(), self.children)]
+                          filter(lambda y: type(y) == TextInput and isfloat(y.text), self.children)]
                 values.reverse()
                 vaux = values
                 values = [[vaux[j] for j in range(i, i + n)] for i in range(0, len(vaux), n)]
@@ -799,33 +836,38 @@ class Gui(GridLayout):
                 names = ["x", "y", "z", "a", "b", "c"]
                 values = [[10.0, 9.0, 5.0], [9.0, 8.0, 3.0], [6.0, 4.0, 7.0]]
 
-            print(names)
-            print(values)
+            self.clear_widgets()
             # Iterate until the job is done
+
+            output = []
+            height = 30 * (n + 3)
 
             # 1. Row min
             rm = [min(x) for x in values]
+
+            output.append(
+                Label(text="1. Subtract Row Minimal", size_hint=(None, None), size=(200, 30)))
+
+            output.append(
+                AssignmentMinOutputTable(values, rm, "Row", names, size_hint=(None, None), width=Window.width))
+
             for i in range(len(values)):
                 if rm[i] != 0:
                     for j in range(len(values)):
                         values[i][j] -= rm[i]
 
-            self.add_widget(Label(text="1. Subtract Row Minimal", size_hint=(None, None), size=(200, 30)))
-
-            self.add_widget(
-                AssignmentMinOutputTable(values, rm, "Row", names, size_hint=(None, None), width=Window.width))
-
             # 2. Col min
             cm = [min(x) for x in [[values[j][i] for j in range(n)] for i in range(n)]]
+
+            output.append(Label(text="2. Subtract Column Minimal", size_hint=(None, None), size=(200, 30)))
+
+            output.append(
+                AssignmentMinOutputTable(values, cm, "Column", names, size_hint=(None, None), width=Window.width))
+
             for i in range(len(values)):
                 if cm[i] != 0:
                     for j in range(len(values)):
                         values[j][i] -= cm[i]
-
-            self.add_widget(Label(text="2. Subtract Column Minimal", size_hint=(None, None), size=(200, 30)))
-
-            self.add_widget(
-                AssignmentMinOutputTable(values, cm, "Column", names, size_hint=(None, None), width=Window.width))
 
             while True:
                 # 3. Lines
@@ -847,7 +889,9 @@ class Gui(GridLayout):
                     if h[i][1] == 0:
                         h[i][0] = 0
 
-                self.add_widget(
+                output.append(Label(text="3. Covering the zeroes with lines",
+                                    size_hint=(None, None), size=(220, 30)))
+                output.append(
                     AssignmentLineOutputTable(values, names, h, v, size_hint=(None, None), width=Window.width))
 
                 # If the number of lines is equal to n, we stop, if not, we continue with step 4
@@ -855,8 +899,10 @@ class Gui(GridLayout):
                 for i in range(len(values)):
                     lines += v[i][0] + h[i][0]
                 if lines == len(values):
-                    print("optimal solution found!")
                     break
+
+                output.append(Label(text="4. Creating additional zeroes",
+                                    size_hint=(None, None), size=(200, 30)))
                 # 4. Create additional zeros
                 # 4.1 minimum value not covered by a line
                 min_value = math.inf
@@ -872,6 +918,19 @@ class Gui(GridLayout):
                             values[i][j] -= min_value
                         elif (v[j][0] + h[i][0]) == 2:
                             values[i][j] += min_value
+
+                output.append(
+                    AssignmentOutputTable(values, names, size_hint=(None, None), width=Window.width))
+
+            for i in range(len(output)):
+                if type(output[i]) == Label:
+                    output[i].pos = (0, (len(output) - i) * height + 30)
+                else:
+                    output[i].pos = (0, (len(output) - i) * height - 30)
+
+            layout = RelativeLayout(size=(400 + 200 * n, height * len(output) + 30 * (n + 1)), size_hint=(None, None))
+            for x in output:
+                layout.add_widget(x)
 
             solution = []
             zeroes = [x.count(0.0) for x in values]
@@ -910,7 +969,32 @@ class Gui(GridLayout):
 
                     min_number_of_zeroes = math.inf
                     min_z()
-            print(solution)
+
+            layout.add_widget(Label(text="Solution:", size=(200, 30), size_hint=(None, None), pos=(0, 30 * (n + 1))))
+            for i in range(len(values)):
+                layout.add_widget(
+                    Label(text=names[len(values) + i], size=(200, 30), pos=(0, 30 * (n - i)), size_hint=(None, None)))
+                layout.add_widget(Label(text=names[i], size=(200, 30), pos=(400, 30 * (n - i)), size_hint=(None, None)))
+
+            self.canvas.before.clear()
+            with self.canvas.before:
+                Color(*self.base1)
+                Rectangle(
+                    pos=layout.pos,
+                    size=layout.size)
+            for x in solution:
+                with layout.canvas.before:
+                    Color(*self.error)
+                    Line(points=(200, 30 * (n - x[0]) + 14, 400, 30 * (n - x[1]) + 14), width=1)
+
+            save_to_png = Button(text="Export as png", size_hint=(None, None), size=(200, 30),
+                                 background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
+                                 background_normal="",
+                                 border=(0, 0, 0, 0),
+                                 pos=(200, 0))
+            save_to_png.bind(on_release=self.show_save_png)
+            layout.add_widget(save_to_png)
+            self.add_widget(layout)
 
     def show_save_png(self, btn):
         content = SaveDialog(save=self.save_png, dismiss=self.dismiss_popup)
