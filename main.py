@@ -594,18 +594,24 @@ class Gui(GridLayout):
             for i in range(1, len(solution)):
                 self.add_widget(Label(text=("x" + str(i) + " = " + str(solution[i])), size_hint=(None, None),
                                       size=(250, 30)))
+
+            export_buttons = GridLayout(size=(250, 60), cols=1, size_hint=(None, None))
+
             save_to_xl = Button(text="Export as Excel 2010 xlsx", size_hint=(None, None), size=(250, 30),
                                 background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
                                 background_normal="",
                                 border=(0, 0, 0, 0))
             save_to_xl.bind(on_release=lambda e: self.show_save_xl(e, s))
-            self.add_widget(save_to_xl)
+            export_buttons.add_widget(save_to_xl)
             save_to_png = Button(text="Export as png", size_hint=(None, None), size=(250, 30),
                                  background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
                                  background_normal="",
                                  border=(0, 0, 0, 0))
             save_to_png.bind(on_release=self.show_save_png)
-            self.add_widget(save_to_png)
+            export_buttons.add_widget(save_to_png)
+
+            self.add_widget(export_buttons)
+
             for i in range(len(output_tables)):
                 self.add_widget(output_tables[i])
         elif problem_nature == "Integer Linear Programming":  # Integer linear
@@ -755,7 +761,7 @@ class Gui(GridLayout):
                         base_width = ((sibling_spacing * j * (len(problems[-1])) /
                                        len(problems[i])) + sibling_spacing * (
                                           len(problems[-1]) / (2 ** (i + 1))))
-                        base_height = text_height * (len(problems) - i) + 100 * (len(problems) - i - 1)
+                        base_height = text_height * (len(problems) - i - 1) + 100 * (len(problems) - i - 1)
 
                         if i != len(problems) - 2 and (
                                         problems[i + 1][j * 2] is None or problems[i][j].solution is None) and i != 0:
@@ -837,19 +843,14 @@ class Gui(GridLayout):
             for i in range(1, len(optimal_solution)):
                 text += "x" + str(i) + " = " + str(optimal_solution[i]) + "\n"
             new_label = Label(text=text, size=(text_width, text_height),
-                              pos=(0, len(problems) * text_height + 100 * (len(problems) - 1)), size_hint=(None, None))
+                              pos=(0, len(problems) * text_height + 100 * (len(problems) - 2)), size_hint=(None, None))
             with self.canvas.before:
                 Color(*self.highlight)
                 Rectangle(pos=new_label.pos, size=new_label.size)
             layout.add_widget(new_label)
 
-            layout.add_widget(
-                Label(text="The spanning tree is on the right side of the window ->",
-                      pos=(new_label.x + 200, new_label.y),
-                      size_hint=(None, None), size=(400, 30)))
-
             save_btn = Button(text="Export as png", size=(text_width, 30),
-                              pos=(0, len(problems) * text_height - 30 + 100 * (len(problems) - 1)),
+                              pos=(0, len(problems) * text_height - 30 + 100 * (len(problems) - 2)),
                               size_hint=(None, None),
                               border=(0, 0, 0, 0),
                               background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
@@ -1161,7 +1162,7 @@ class Gui(GridLayout):
                     pass
 
     def show_save_png(self, btn):
-        content = SaveDialog(save=self.save_png, dismiss=self.dismiss_popup)
+        content = SaveDialog(save=lambda path, filename: self.save_png(btn, path, filename), dismiss=self.dismiss_popup)
         self._popup = Popup(title="Save file", content=content,
                             size_hint=(0.9, 0.9),
                             background="src/images/colors/base1.png")
@@ -1170,10 +1171,24 @@ class Gui(GridLayout):
     def dismiss_popup(self, e):
         self._popup.dismiss()
 
-    def save_png(self, path, filename):
+    def save_png(self, btn, path, filename):
+        draw_inst = None
+
+        if len(btn.parent.children) == 1:
+            btn.parent.remove_widget(btn)
+        else:
+            draw_inst = btn.parent.canvas.children[:]
+            btn.parent.canvas.clear()
         f = os.path.join(path, filename)
         self.export_to_png(f + ".png" if filename[-5:] != ".png" else f)
         self._popup.dismiss()
+
+        if len(btn.parent.children) == 1:
+            btn.parent.add_widget(btn)
+        else:
+            self.resize_background()
+            for x in draw_inst:
+                btn.parent.canvas.add(x)
 
     def show_save_xl(self, btn, problem):
         content = SaveDialog(save=lambda path, filename: self.save_xl(path, filename, problem),
