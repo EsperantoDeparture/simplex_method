@@ -373,12 +373,12 @@ class Gui(GridLayout):
         self.bind(minimum_height=self.setter('height'))
         self.bind(minimum_width=self.setter('width'))
 
-        self.base1 = list(map(lambda x: (x / 255), [0, 43, 54, 255]))
-        self.base2 = list(map(lambda x: (x / 255), [7, 54, 66, 255]))
-        self.base3 = list(map(lambda x: (x / 255), [253, 246, 227, 255]))
-        self.error = list(map(lambda x: (x / 255), [220, 50, 47, 255]))
-        self.pivot = list(map(lambda x: (x / 255), [133, 153, 0, 255]))
-        self.highlight = list(map(lambda x: (x / 255), [38, 139, 210, 255]))
+        self.base1 = list(map(lambda component: (component / 255), [0, 43, 54, 255]))
+        self.base2 = list(map(lambda component: (component / 255), [7, 54, 66, 255]))
+        self.base3 = list(map(lambda component: (component / 255), [253, 246, 227, 255]))
+        self.error = list(map(lambda component: (component / 255), [220, 50, 47, 255]))
+        self.pivot = list(map(lambda component: (component / 255), [133, 153, 0, 255]))
+        self.highlight = list(map(lambda component: (component / 255), [38, 139, 210, 255]))
 
         # self.bind(minimum_height=lambda x, y: self.resize_background())
         # self.bind(minimum_width=lambda x, y: self.resize_background())
@@ -422,7 +422,7 @@ class Gui(GridLayout):
 
         # Type of the problem
         self.problem_nature = DropDown()
-        for x in ["Linear Programming", "Integer Linear Programming", "Assignment Problem"]:
+        for x in ["Linear Programming", "Integer Linear Programming", "Assignment Problem", "Transportation Problem"]:
             btn = Button(text=x, size_hint_y=None, height=30,
                          background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
                          background_normal="",
@@ -464,8 +464,12 @@ class Gui(GridLayout):
 
     def gen_input_table(self, e):
         self.clear_widgets()
-        if self.open_problem_nature.text == "Integer Linear Programming" or self.open_problem_nature.text == "Linear Programming":
+        if self.open_problem_nature.text == "Integer Linear Programming" or \
+                self.open_problem_nature.text == "Linear Programming":
             self.cols = 1
+            if self.number_of_variables.text == "":
+                self.solve(None)
+                return
             variables = int(self.number_of_variables.text)
             constraints = int(self.number_of_constraints.text)
             self.type = DropDown()
@@ -548,7 +552,8 @@ class Gui(GridLayout):
                                    border=(0, 0, 0, 0)))
 
         elif self.open_problem_nature.text == "Transportation Problem":
-            pass
+            self.cols = 1
+            self.solve(None)
 
     def solve(self, e):
         problem_nature = self.open_problem_nature.text
@@ -564,6 +569,17 @@ class Gui(GridLayout):
             a = [x.get_coefficients() for x in self.constraints]  # Coefficients of the constraints' variables
             b = [x.get_rhs() for x in self.constraints]  # Rhs
             constraint_types = [x.get_type() for x in self.constraints]
+
+            # We need to "fix" every constraint with a negative bi
+            for i in range(len(b)):
+                if b[i] < 0.0:
+                    a[i] = [-x for x in a[i]]
+                    b[i] = -b[i]
+                    if constraint_types[i] == ">=":
+                        constraint_types[i] = "<="
+                    elif constraint_types[i] == "<=":
+                        constraint_types[i] = ">="
+
             variable_names = ["x" + str(i) for i in range(1, variables + 1)]
             iteration = 0
 
@@ -593,25 +609,57 @@ class Gui(GridLayout):
             for i in range(len(output_tables)):
                 self.add_widget(output_tables[i])
         elif problem_nature == "Integer Linear Programming":  # Integer linear
-            problem_type = self.open_problem_type.text
-            variables = int(self.number_of_variables.text)
-            constraints = int(self.number_of_constraints.text)
-            self.clear_widgets()
-            # Coefficients of the objective function
-            cj = [str(x.get()) for x in
-                  filter(lambda y: type(y) == Variable, self.fo.children)]
-            cj.reverse()
-            a = [x.get_coefficients() for x in self.constraints]  # Coefficients of the constraints' variables
-            b = [x.get_rhs() for x in self.constraints]  # Rhs
-            constraint_types = [x.get_type() for x in self.constraints]
-            variable_names = ["x" + str(i) for i in range(1, variables + 1)]
-            iteration = 0
+            if self.number_of_variables.text == "":
+                problem_type = "Maximize"
+                variables = 4
+                constraints = 4
+                self.clear_widgets()
+                # Coefficients of the objective function
+                cj = ["4.0", "-2.0", "7.0", "-1.0"]
+                a = [[1.0, 0.0, 5.0, 0.0], [1.0, 1.0, -1.0, 0.0], [6.0, -5.0, 0.0, 0.0], [-1.0, 0.0, 2.0, -2.0]]
+                b = [10.0, 1.0, 0.0, 3.0]
+                constraint_types = ["<=", "<=", "<=", "<="]
 
-            integer_check = [x.active for x in self.integer_check]
-            height = 0
-            # Initial problem
-            problems = [[Simplex(variables, constraints, cj[:], [x[:] for x in a], b[:], constraint_types[:],
-                                 variable_names, problem_type)]]
+                variable_names = ["x" + str(i) for i in range(1, variables + 1)]
+                iteration = 0
+
+                integer_check = [1, 1, 1, 0]
+                height = 0
+                # Initial problem
+                problems = [[Simplex(variables, constraints, cj[:], [x[:] for x in a], b[:], constraint_types[:],
+                                     variable_names, problem_type)]]
+            else:
+                problem_type = self.open_problem_type.text
+                variables = int(self.number_of_variables.text)
+                constraints = int(self.number_of_constraints.text)
+                self.clear_widgets()
+                # Coefficients of the objective function
+                cj = [str(x.get()) for x in
+                      filter(lambda y: type(y) == Variable, self.fo.children)]
+                cj.reverse()
+                a = [x.get_coefficients() for x in self.constraints]  # Coefficients of the constraints' variables
+                b = [x.get_rhs() for x in self.constraints]  # Rhs
+                constraint_types = [x.get_type() for x in self.constraints]
+
+                variable_names = ["x" + str(i) for i in range(1, variables + 1)]
+                iteration = 0
+
+                integer_check = [x.active for x in self.integer_check]
+                height = 0
+                # Initial problem
+                problems = [[Simplex(variables, constraints, cj[:], [x[:] for x in a], b[:], constraint_types[:],
+                                     variable_names, problem_type)]]
+
+            # We need to "fix" every constraint with a negative bi
+            for i in range(len(b)):
+                if b[i] < 0.0:
+                    a[i] = [-x for x in a[i]]
+                    b[i] = -b[i]
+                    if constraint_types[i] == ">=":
+                        constraint_types[i] = "<="
+                    elif constraint_types[i] == "<=":
+                        constraint_types[i] = ">="
+
             optimal_solution_aux = -math.inf if problem_type == "Maximize" else math.inf
             optimal_solution = None
             optimal_solution_coord = []
@@ -666,10 +714,10 @@ class Gui(GridLayout):
                 height += 1
 
             # It's time to print the tree to the gui
-            text_height = 30 * variables + 30
+            text_height = 30 * (variables + 1)
             text_width = 200
             sibling_spacing = text_width
-            layout = FloatLayout(size_hint=(None, None), size=(
+            layout = RelativeLayout(size_hint=(None, None), size=(
                 text_width * len(problems[-1]) + text_width, text_height * len(problems) + 100 * len(problems)))
             with self.canvas.before:
                 Color(*self.base1)
@@ -995,6 +1043,122 @@ class Gui(GridLayout):
             save_to_png.bind(on_release=self.show_save_png)
             layout.add_widget(save_to_png)
             self.add_widget(layout)
+        elif problem_nature == "Transportation Problem":
+            costs = [[10, 0, 20, 11], [12, 7, 9, 20], [0, 14, 16, 18]]
+            assignment = [[0 for i in range(len(x))] for x in costs]
+            demand = [5, 15, 15, 10]
+            supply = [15, 25, 5]
+            origin_names = ["1", "2", "3"]
+            destination_names = ["1", "2", "3", "4"]
+
+            e_rows = []
+            e_cols = []
+            while True:
+                # 1 Calculating the penalizations per column and row
+                p_row = []
+                p_col = []
+                for i in range(len(costs)):
+                    if i not in e_rows:
+                        min_cost = min(costs[i])
+                        second_min_cost = min(filter(lambda x: x != min_cost, costs[i]))
+                        p_row.append(second_min_cost - min_cost)
+                    else:
+                        p_row.append(-math.inf)
+
+                for i in range(len(costs[0])):
+                    if i not in e_cols:
+                        min_cost = math.inf
+                        second_min_cost = math.inf
+                        for j in range(len(costs)):
+                            if min_cost > costs[j][i]:
+                                min_cost = costs[j][i]
+
+                        for j in range(len(costs)):
+                            if second_min_cost > costs[j][i] != min_cost:
+                                second_min_cost = costs[j][i]
+    
+                        p_col.append(second_min_cost - min_cost)
+                    else:
+                        p_col.append(-math.inf)
+
+                print("1. Penalization")
+                print("Costs: ", costs)
+                print("Demand: ", demand)
+                print("Supply: ", supply)
+                print("row pen: ", p_row)
+                print("col pen: ", p_col)
+                pr = max(p_row)
+                pc = max(p_col)
+                print("max row pen: ", pr)
+                print("max col pen: ", pc)
+                if len(e_rows) == len(e_cols) == len(costs) or pr == pc == -math.inf:
+                    break
+
+                if pr >= pc:
+                    row = p_row.index(pr)
+                    c = []
+                    for i in range(len(costs[row])):
+                        if i in e_cols:
+                            c.append(math.inf)
+                        else:
+                            c.append(costs[row][i])
+                    column = c.index(min(c))
+
+                    difference = supply[row] - demand[column]
+                    if difference == 0:
+                        assignment[row][column] = demand[column]
+                        supply[row] = demand[column] = 0
+                    elif difference < 0:
+                        assignment[row][column] = supply[row]
+                        demand[column] = 0
+                        supply[row] = abs(difference)
+                    else:
+                        assignment[row][column] = demand[column]
+                        supply[row] = difference
+                        demand[column] = 0
+
+                    if demand[column] == 0:
+                        e_cols.append(column)
+                    if supply[row] == 0:
+                        e_rows.append(row)
+                else:
+                    column = p_col.index(pc)
+                    c = []
+                    for i in range(len(costs)):
+                        if i in e_rows:
+                            c.append(math.inf)
+                        else:
+                            c.append(costs[i][column])
+                    row = c.index(min(c))
+                    difference = supply[row] - demand[column]
+
+                    if difference == 0:
+                        assignment[row][column] = demand[column]
+                        supply[row] = demand[column] = 0
+                    elif difference < 0:
+                        assignment[row][column] = supply[row]
+                        demand[column] = 0
+                        supply[row] = abs(difference)
+                    else:
+                        assignment[row][column] = demand[column]
+                        supply[row] = difference
+                        demand[column] = 0
+
+                    if demand[column] == 0:
+                        e_cols.append(column)
+                    if supply[row] == 0:
+                        e_rows.append(row)
+                print("Assignment: ", assignment)
+                print("finished rows: ", e_rows)
+                print("finished cols: ", e_cols)
+
+            print("STARTING M.O.D.I")
+            while True:
+                # 1. getting the values for the ui and vj
+                u = [None for x in costs]
+                v = [None for x in costs[0]]
+                while True:
+                    pass
 
     def show_save_png(self, btn):
         content = SaveDialog(save=self.save_png, dismiss=self.dismiss_popup)
@@ -1181,8 +1345,6 @@ class Simplex:
         cj_minus_zj = ["0.0" for x in range(variables + gt_constraints * 2 + eq_constraints + lt_constraints)]
         zj = cj_minus_zj[:]
 
-        basic_vars = variable_names[variables + gt_constraints:]
-
         cj += ["0.0" for x in range(gt_constraints)]
         if problem_type == "Maximize":
             cj += ["-m" for x in range(gt_constraints + eq_constraints)]
@@ -1205,6 +1367,12 @@ class Simplex:
                            variables + gt_constraints * 2 + eq_constraints + lt_constraints):
                 if (i + variables + gt_constraints) == j:
                     a[i][j] = 1.0
+
+        basic_vars = []
+        for i in range(len(a)):
+            for j in range(variables, len(a[i])):
+                if a[i][j] == 1.0:
+                    basic_vars.append(variable_names[j])
 
         # Now it's time to iterate until the job is done
         end = False
@@ -1281,7 +1449,7 @@ class Simplex:
             min_ratio = math.inf
             leaving_variable_index = None
             for i in range(len(b)):
-                if a[i][entering_variable_index] > 0 and b[i] >= 0:
+                if a[i][entering_variable_index] > 0:
                     if min_ratio > b[i] / a[i][entering_variable_index]:
                         min_ratio = b[i] / a[i][entering_variable_index]
                         leaving_variable_index = i
@@ -1342,6 +1510,13 @@ class Simplex:
         self.a.append(coefficients)
         self.constraint_types.append(constraint_type)
         self.number_of_constraints += 1
+        if self.b[-1] < 0.0:
+            self.b[-1] = -self.b[-1]
+            self.a[-1] = [-x for x in self.a[-1]]
+            if self.constraint_types[-1] == ">=":
+                self.constraint_types[-1] = "<="
+            elif self.constraint_types[-1] == "<=":
+                self.constraint_types[-1] = ">="
         return self
 
     @classmethod
