@@ -1039,8 +1039,8 @@ class Gui(GridLayout):
             for x in solution:
                 with layout.canvas.before:
                     Color(*self.error)
-                    Line(points=(200, 30 * (n - x[0]) + 14, 400, 30 * (n - x[0]) + 14, 400, 30 * (n - x[0]) + 28, 414,
-                                 30 * (n - x[0]) + 14, 400, 30 * (n - x[0]), 400, 30 * (n - x[0]) + 14), width=1)
+                    Line(points=(200, 30 * (n - x[0]) + 14, 400, 30 * (n - x[0]) + 14, 400, 30 * (n - x[0]) + 21, 407,
+                                 30 * (n - x[0]) + 14, 400, 30 * (n - x[0]) + 7, 400, 30 * (n - x[0]) + 14), width=1)
 
             save_to_png = Button(text="Export as png", size_hint=(None, None), size=(200, 30),
                                  background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
