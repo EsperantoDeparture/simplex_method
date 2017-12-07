@@ -10,7 +10,6 @@ from kivy.uix.button import Button
 from kivy.uix.checkbox import CheckBox
 from kivy.uix.dropdown import DropDown
 from kivy.uix.filechooser import FileChooserListView
-from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
@@ -465,7 +464,7 @@ class Gui(GridLayout):
     def gen_input_table(self, e):
         self.clear_widgets()
         if self.open_problem_nature.text == "Integer Linear Programming" or \
-                self.open_problem_nature.text == "Linear Programming":
+                        self.open_problem_nature.text == "Linear Programming":
             self.cols = 1
             if self.number_of_variables.text == "":
                 self.solve(None)
@@ -758,17 +757,18 @@ class Gui(GridLayout):
             for i in range(len(problems) - 1):
                 for j in range(len(problems[i])):
                     if problems[i][j] is not None:
-                        base_width = ((sibling_spacing * j * (len(problems[-1])) /
-                                       len(problems[i])) + sibling_spacing * (
-                                          len(problems[-1]) / (2 ** (i + 1))))
-                        base_height = text_height * (len(problems) - i - 1) + 100 * (len(problems) - i - 1)
+                        base_x = ((sibling_spacing * j * (len(problems[-1])) /
+                                   len(problems[i])) + sibling_spacing * (
+                                      len(problems[-1]) / (2 ** (i + 1))))
+
+                        base_y = text_height * (len(problems) - i - 1) + 100 * (len(problems) - i - 1)
 
                         if i != len(problems) - 2 and (
                                         problems[i + 1][j * 2] is None or problems[i][j].solution is None) and i != 0:
-                            base_width = ((sibling_spacing * (j // 2) * (len(problems[-1])) /
-                                           len(problems[i - 1])) + sibling_spacing * (
-                                              len(problems[-1]) / (2 ** i))) + (
-                                             text_width * 2 if (j + 1) % 2 == 0 else - text_width * 2)
+                            base_x = ((sibling_spacing * (j // 2) * (len(problems[-1])) /
+                                       len(problems[i - 1])) + sibling_spacing * (
+                                          len(problems[-1]) / (2 ** i))) + (
+                                         text_width * 2 if (j + 1) % 2 == 0 else - text_width * 2)
 
                         if problems[i][j].solution is None:
                             text = "infeasible"
@@ -790,37 +790,37 @@ class Gui(GridLayout):
                                     problems[i][j].constraint_types[
                                         -1] + " " + str(problems[i][j].b[-1])),
                                     pos=(
-                                        base_width,
-                                        base_height + text_height / 2 + 15),
+                                        base_x,
+                                        base_y + text_height / 2 + 15),
                                     size=(text_width, text_height), size_hint=(None, None)))
 
                             with self.canvas.before:
                                 Color(*self.base3)
                                 Line(points=(
-                                    base_width + text_width / 2,
-                                    base_height + text_height,
+                                    base_x + text_width / 2,
+                                    base_y + text_height,
                                     text_width / 2 +
                                     ((sibling_spacing * (j // 2) * (len(problems[-1])) /
                                       len(problems[i - 1])) + sibling_spacing * (
                                          len(problems[-1]) / (2 ** i))), text_height +
-                                    base_height + 100), width=1)
+                                    base_y + 100), width=1)
 
                         with self.canvas.before:
                             Color(*color)
-                            Rectangle(pos=(base_width,
-                                           base_height),
+                            Rectangle(pos=(base_x,
+                                           base_y),
                                       size=(text_width, text_height))
 
                             Color(*self.base3)
                             Line(points=(
-                                base_width, base_height, base_width, base_height + text_height,
-                                base_width + text_width,
-                                base_height + text_height, base_width + text_width, base_height, base_width,
-                                base_height, base_width + text_width, base_height), width=1)
+                                base_x, base_y, base_x, base_y + text_height,
+                                base_x + text_width,
+                                base_y + text_height, base_x + text_width, base_y, base_x,
+                                base_y, base_x + text_width, base_y), width=1)
 
                         new_button = Button(text="+", size_hint=(None, None),
                                             size=(30, 30),
-                                            pos=(base_width + text_width - 15, base_height + text_height - 17),
+                                            pos=(base_x + text_width - 15, base_y + text_height - 17),
                                             border=(0, 0, 0, 0),
                                             background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])))
                         new_button.i = i
@@ -834,8 +834,8 @@ class Gui(GridLayout):
 
                         layout.add_widget(Label(text=text,
                                                 pos=(
-                                                    base_width,
-                                                    base_height),
+                                                    base_x,
+                                                    base_y),
                                                 size=(text_width, text_height), size_hint=(None, None)))
             # Printing the optimal solution
             text = "Optimal solution\n" + ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + str(
@@ -1000,7 +1000,7 @@ class Gui(GridLayout):
 
                     for j in range(len(values)):
                         if values[i][j] == 0.0 and j not in cmp and zeroes[
-                                i] == min_number_of_zeroes:
+                            i] == min_number_of_zeroes:
                             solution.append([i, j])
                             cmp.append(j)
                             values[i][j] = -1
@@ -1019,11 +1019,15 @@ class Gui(GridLayout):
                     min_number_of_zeroes = math.inf
                     min_z()
 
+            solution.sort(key=lambda x: x[0])
+
             layout.add_widget(Label(text="Solution:", size=(200, 30), size_hint=(None, None), pos=(0, 30 * (n + 1))))
-            for i in range(len(values)):
+            for i in range(len(solution)):
                 layout.add_widget(
-                    Label(text=names[len(values) + i], size=(200, 30), pos=(0, 30 * (n - i)), size_hint=(None, None)))
-                layout.add_widget(Label(text=names[i], size=(200, 30), pos=(400, 30 * (n - i)), size_hint=(None, None)))
+                    Label(text=names[len(values) + solution[i][0]], size=(200, 30), pos=(0, 30 * (n - i)),
+                          size_hint=(None, None)))
+                layout.add_widget(
+                    Label(text=names[solution[i][1]], size=(200, 30), pos=(400, 30 * (n - i)), size_hint=(None, None)))
 
             self.canvas.before.clear()
             with self.canvas.before:
@@ -1031,10 +1035,12 @@ class Gui(GridLayout):
                 Rectangle(
                     pos=layout.pos,
                     size=layout.size)
+
             for x in solution:
                 with layout.canvas.before:
                     Color(*self.error)
-                    Line(points=(200, 30 * (n - x[0]) + 14, 400, 30 * (n - x[1]) + 14), width=1)
+                    Line(points=(200, 30 * (n - x[0]) + 14, 400, 30 * (n - x[0]) + 14, 400, 30 * (n - x[0]) + 28, 414,
+                                 30 * (n - x[0]) + 14, 400, 30 * (n - x[0]), 400, 30 * (n - x[0]) + 14), width=1)
 
             save_to_png = Button(text="Export as png", size_hint=(None, None), size=(200, 30),
                                  background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
@@ -1077,7 +1083,7 @@ class Gui(GridLayout):
                         for j in range(len(costs)):
                             if second_min_cost > costs[j][i] != min_cost:
                                 second_min_cost = costs[j][i]
-    
+
                         p_col.append(second_min_cost - min_cost)
                     else:
                         p_col.append(-math.inf)
@@ -1174,8 +1180,9 @@ class Gui(GridLayout):
     def save_png(self, btn, path, filename):
         draw_inst = None
 
-        if len(btn.parent.children) == 1:
-            btn.parent.remove_widget(btn)
+        if type(btn.parent) == RelativeLayout:
+            draw_inst = btn.canvas.children[:]
+            btn.canvas.clear()
         else:
             draw_inst = btn.parent.canvas.children[:]
             btn.parent.canvas.clear()
@@ -1183,8 +1190,9 @@ class Gui(GridLayout):
         self.export_to_png(f + ".png" if filename[-5:] != ".png" else f)
         self._popup.dismiss()
 
-        if len(btn.parent.children) == 1:
-            btn.parent.add_widget(btn)
+        if type(btn.parent) == RelativeLayout:
+            for x in draw_inst:
+                btn.parent.canvas.add(x)
         else:
             self.resize_background()
             for x in draw_inst:
