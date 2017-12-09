@@ -151,7 +151,7 @@ class SimplexOutputTable(OutputTable):
 
 
 class AssignmentOutputTable(OutputTable):
-    def __init__(self, costs, names, **kwargs):
+    def __init__(self, costs, names, label, **kwargs):
         super(AssignmentOutputTable, self).__init__(**kwargs)
         self.n = len(costs)
         self.cols = self.n + 1
@@ -160,6 +160,10 @@ class AssignmentOutputTable(OutputTable):
         self.bind(minimum_width=self.setter('width'))
         self.bind(minimum_height=lambda x, y: self.resize_background())
         self.bind(minimum_width=lambda x, y: self.resize_background())
+
+        self.add_widget(Label(text=label, size_hint=(1, None), height=30))
+        for i in range(self.cols - 1):
+            self.add_widget(Label(text="", size_hint=(0, None), height=30))
 
         self.add_widget(Label(text="Names", size_hint=(None, None), size=(200, 30)))
         for i in range(self.n):
@@ -179,7 +183,7 @@ class AssignmentOutputTable(OutputTable):
 
 
 class AssignmentMinOutputTable(OutputTable):
-    def __init__(self, costs, m, m_type, names, **kwargs):
+    def __init__(self, costs, m, m_type, names, label, **kwargs):
         super(AssignmentMinOutputTable, self).__init__(**kwargs)
         self.n = len(costs)
         self.m_type = m_type
@@ -189,6 +193,10 @@ class AssignmentMinOutputTable(OutputTable):
         self.bind(minimum_width=self.setter('width'))
         self.bind(minimum_height=lambda x, y: self.resize_background())
         self.bind(minimum_width=lambda x, y: self.resize_background())
+
+        self.add_widget(Label(text=label, size_hint=(1, None), height=30))
+        for i in range(self.cols - 1):
+            self.add_widget(Label(text="", size_hint=(0, None), height=30))
 
         self.add_widget(Label(text="Names", size_hint=(None, None), size=(200, 30)))
         for i in range(self.n):
@@ -217,7 +225,7 @@ class AssignmentMinOutputTable(OutputTable):
 
 
 class AssignmentLineOutputTable(OutputTable):
-    def __init__(self, costs, names, h, v, **kwargs):
+    def __init__(self, costs, names, h, v, label, **kwargs):
         super(AssignmentLineOutputTable, self).__init__(**kwargs)
         self.h = h
         self.v = v
@@ -229,12 +237,16 @@ class AssignmentLineOutputTable(OutputTable):
         self.bind(minimum_height=lambda x, y: self.resize_background())
         self.bind(minimum_width=lambda x, y: self.resize_background())
 
+        self.add_widget(Label(text=label, size_hint=(None, None), size=(220, 30)))
+        for i in range(self.cols - 1):
+            self.add_widget(Label(text="", size_hint=(0, None), height=30))
+
         self.add_widget(Label(text="Names", size_hint=(None, None), size=(200, 30)))
         for i in range(self.n):
             self.add_widget(Label(text=names[i], size_hint=(None, None), size=(200, 30)))
 
         for i in range(len(costs)):
-            self.add_widget(Label(text=names[self.n + i], size_hint=(None, None), size=(200, 30)))
+            self.add_widget(Label(text=names[self.n + i], size_hint=(None, None), size=(220, 30)))
             for j in range(len(costs)):
                 self.add_widget(Label(text=str(costs[i][j]), size_hint=(None, None), size=(200, 30)))
 
@@ -245,20 +257,20 @@ class AssignmentLineOutputTable(OutputTable):
         with self.canvas.before:
             Color(*self.base2)
             Rectangle(size=(200 * self.n, 30 * self.n),
-                      pos=(200, self.y))
+                      pos=(220, self.y))
 
         for i in range(len(self.h)):
             if self.h[i][0]:
                 with self.canvas.after:
                     Color(*self.error)
-                    Line(points=(200, self.y + 30 * (len(self.h) - i - 1) + 14, 200 * (self.n + 1),
+                    Line(points=(220, self.y + 30 * (len(self.h) - i - 1) + 14, 200 * (self.n + 1) + 20,
                                  self.y + 30 * (len(self.h) - i - 1) + 14), width=1)
 
         for i in range(len(self.v)):
             if self.v[i][0]:
                 with self.canvas.after:
                     Color(*self.error)
-                    Line(points=(200 * (i + 1) + 100, self.y + 30 * self.n, 200 * (i + 1) + 100, self.y), width=1)
+                    Line(points=(200 * (i + 1) + 120, self.y + 30 * self.n, 200 * (i + 1) + 120, self.y), width=1)
 
 
 class Constraint(GridLayout):
@@ -719,11 +731,11 @@ class Gui(GridLayout):
                 height += 1
 
             # It's time to print the tree to the gui
-            text_height = 30 * (variables + 1)
-            text_width = 200
-            sibling_spacing = text_width
+            node_height = 30 * (variables + 1)
+            node_width = 200
+            sibling_spacing = node_width
             layout = RelativeLayout(size_hint=(None, None), size=(
-                text_width * len(problems[-1]) + text_width, text_height * len(problems) + 100 * len(problems)))
+                node_width * len(problems[-1]) + node_width, node_height * len(problems) + 100 * len(problems)))
             with self.canvas.before:
                 Color(*self.base1)
                 Rectangle(pos=layout.pos, size=layout.size)
@@ -761,14 +773,14 @@ class Gui(GridLayout):
                                    len(problems[i])) + sibling_spacing * (
                                       len(problems[-1]) / (2 ** (i + 1))))
 
-                        base_y = text_height * (len(problems) - i - 1) + 100 * (len(problems) - i - 1)
+                        base_y = node_height * (len(problems) - i - 1) + 100 * (len(problems) - i - 1)
 
                         if i != len(problems) - 2 and (
                                         problems[i + 1][j * 2] is None or problems[i][j].solution is None) and i != 0:
                             base_x = ((sibling_spacing * (j // 2) * (len(problems[-1])) /
                                        len(problems[i - 1])) + sibling_spacing * (
                                           len(problems[-1]) / (2 ** i))) + (
-                                         text_width * 2 if (j + 1) % 2 == 0 else - text_width * 2)
+                                         node_width * 2 if (j + 1) % 2 == 0 else - node_width * 2)
 
                         if problems[i][j].solution is None:
                             text = "infeasible"
@@ -791,36 +803,36 @@ class Gui(GridLayout):
                                         -1] + " " + str(problems[i][j].b[-1])),
                                     pos=(
                                         base_x,
-                                        base_y + text_height / 2 + 15),
-                                    size=(text_width, text_height), size_hint=(None, None)))
+                                        base_y + node_height / 2 + 15),
+                                    size=(node_width, node_height), size_hint=(None, None)))
 
                             with self.canvas.before:
                                 Color(*self.base3)
                                 Line(points=(
-                                    base_x + text_width / 2,
-                                    base_y + text_height,
-                                    text_width / 2 +
+                                    base_x + node_width / 2,
+                                    base_y + node_height,
+                                    node_width / 2 +
                                     ((sibling_spacing * (j // 2) * (len(problems[-1])) /
                                       len(problems[i - 1])) + sibling_spacing * (
-                                         len(problems[-1]) / (2 ** i))), text_height +
+                                         len(problems[-1]) / (2 ** i))), node_height +
                                     base_y + 100), width=1)
 
                         with self.canvas.before:
                             Color(*color)
                             Rectangle(pos=(base_x,
                                            base_y),
-                                      size=(text_width, text_height))
+                                      size=(node_width, node_height))
 
                             Color(*self.base3)
                             Line(points=(
-                                base_x, base_y, base_x, base_y + text_height,
-                                base_x + text_width,
-                                base_y + text_height, base_x + text_width, base_y, base_x,
-                                base_y, base_x + text_width, base_y), width=1)
+                                base_x, base_y, base_x, base_y + node_height,
+                                base_x + node_width,
+                                base_y + node_height, base_x + node_width, base_y, base_x,
+                                base_y, base_x + node_width, base_y), width=1)
 
                         new_button = Button(text="+", size_hint=(None, None),
                                             size=(30, 30),
-                                            pos=(base_x + text_width - 15, base_y + text_height - 17),
+                                            pos=(base_x + node_width - 15, base_y + node_height - 17),
                                             border=(0, 0, 0, 0),
                                             background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])))
                         new_button.i = i
@@ -836,21 +848,21 @@ class Gui(GridLayout):
                                                 pos=(
                                                     base_x,
                                                     base_y),
-                                                size=(text_width, text_height), size_hint=(None, None)))
+                                                size=(node_width, node_height), size_hint=(None, None)))
             # Printing the optimal solution
             text = "Optimal solution\n" + ("Zmax = " if problem_type == "Maximize" else "Zmin = ") + str(
                 optimal_solution[0]) + "\n"
             for i in range(1, len(optimal_solution)):
                 text += "x" + str(i) + " = " + str(optimal_solution[i]) + "\n"
-            new_label = Label(text=text, size=(text_width, text_height),
-                              pos=(0, len(problems) * text_height + 100 * (len(problems) - 2)), size_hint=(None, None))
+            new_label = Label(text=text, size=(node_width, node_height),
+                              pos=(0, len(problems) * node_height + 100 * (len(problems) - 2)), size_hint=(None, None))
             with self.canvas.before:
                 Color(*self.highlight)
                 Rectangle(pos=new_label.pos, size=new_label.size)
             layout.add_widget(new_label)
 
-            save_btn = Button(text="Export as png", size=(text_width, 30),
-                              pos=(0, len(problems) * text_height - 30 + 100 * (len(problems) - 2)),
+            save_btn = Button(text="Export as png", size=(node_width, 30),
+                              pos=(0, len(problems) * node_height - 30 + 100 * (len(problems) - 2)),
                               size_hint=(None, None),
                               border=(0, 0, 0, 0),
                               background_color=tuple(map(lambda x: (x / 255), [42, 161, 152, 192])),
@@ -882,7 +894,7 @@ class Gui(GridLayout):
 
             else:
                 n = 3
-                names = ["x", "y", "z", "a", "b", "c"]
+                names = ["building 1", "building 2", "building 3", "company 1", "company 2", "company 3"]
                 values = [[10.0, 9.0, 5.0], [9.0, 8.0, 3.0], [6.0, 4.0, 7.0]]
 
             self.clear_widgets()
@@ -895,10 +907,7 @@ class Gui(GridLayout):
             rm = [min(x) for x in values]
 
             output.append(
-                Label(text="1. Subtract Row Minimal", size_hint=(None, None), size=(200, 30)))
-
-            output.append(
-                AssignmentMinOutputTable(values, rm, "Row", names, size_hint=(None, None), width=Window.width))
+                AssignmentMinOutputTable(values, rm, "Row", names, "1. Subtract Row Minimal", size_hint=(None, None), width=Window.width))
 
             for i in range(len(values)):
                 if rm[i] != 0:
@@ -908,10 +917,8 @@ class Gui(GridLayout):
             # 2. Col min
             cm = [min(x) for x in [[values[j][i] for j in range(n)] for i in range(n)]]
 
-            output.append(Label(text="2. Subtract Column Minimal", size_hint=(None, None), size=(200, 30)))
-
             output.append(
-                AssignmentMinOutputTable(values, cm, "Column", names, size_hint=(None, None), width=Window.width))
+                AssignmentMinOutputTable(values, cm, "Column", names, "2. Subtract Column Minimal", size_hint=(None, None), width=Window.width))
 
             for i in range(len(values)):
                 if cm[i] != 0:
@@ -938,10 +945,8 @@ class Gui(GridLayout):
                     if h[i][1] == 0:
                         h[i][0] = 0
 
-                output.append(Label(text="3. Covering the zeroes with lines",
-                                    size_hint=(None, None), size=(220, 30)))
                 output.append(
-                    AssignmentLineOutputTable(values, names, h, v, size_hint=(None, None), width=Window.width))
+                    AssignmentLineOutputTable(values, names, h, v, "3. Covering the zeroes with lines", size_hint=(None, None), width=Window.width))
 
                 # If the number of lines is equal to n, we stop, if not, we continue with step 4
                 lines = 0
@@ -950,8 +955,6 @@ class Gui(GridLayout):
                 if lines == len(values):
                     break
 
-                output.append(Label(text="4. Creating additional zeroes",
-                                    size_hint=(None, None), size=(200, 30)))
                 # 4. Create additional zeros
                 # 4.1 minimum value not covered by a line
                 min_value = math.inf
@@ -969,13 +972,10 @@ class Gui(GridLayout):
                             values[i][j] += min_value
 
                 output.append(
-                    AssignmentOutputTable(values, names, size_hint=(None, None), width=Window.width))
+                    AssignmentOutputTable(values, names, "4. Creating additional zeroes", size_hint=(None, None), width=Window.width))
 
             for i in range(len(output)):
-                if type(output[i]) == Label:
-                    output[i].pos = (0, (len(output) - i) * height + 30)
-                else:
-                    output[i].pos = (0, (len(output) - i) * height - 30)
+                output[i].pos = (0, (len(output) - i) * height - 30)
 
             layout = RelativeLayout(size=(400 + 200 * n, height * len(output) + 30 * (n + 1)), size_hint=(None, None))
             for x in output:
