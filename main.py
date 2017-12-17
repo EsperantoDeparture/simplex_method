@@ -273,6 +273,11 @@ class AssignmentLineOutputTable(OutputTable):
                     Line(points=(200 * (i + 1) + 120, self.y + 30 * self.n, 200 * (i + 1) + 120, self.y), width=1)
 
 
+class TransportationProblemTable(RelativeLayout):
+    def __init__(self, **kwargs):
+        super(TransportationProblemTable, self).__init__(**kwargs)
+
+
 class Constraint(GridLayout):
     def __init__(self, variables, **kwargs):
         super(Constraint, self).__init__(**kwargs)
@@ -1051,10 +1056,23 @@ class Gui(GridLayout):
             layout.add_widget(save_to_png)
             self.add_widget(layout)
         elif problem_nature == "Transportation Problem":
-            costs = [[10, 0, 20, 11], [12, 7, 9, 20], [0, 14, 16, 18]]
-            assignment = [[0 for i in range(len(x))] for x in costs]
-            demand = [5, 15, 15, 10]
-            supply = [15, 25, 5]
+            """
+            costs = [[19, 30, 50, 12], [70, 30, 40, 60], [40, 10, 60, 20]]
+            demand = [5, 8, 7, 15]
+            supply = [7, 10, 18]
+            # """
+
+            costs = [[19, 30, 50, 12], [70, 30, 40, 60], [40, 10, 60, 20]]
+            demand = [5, 8, 7, 15]
+            supply = [7, 10, 18]
+
+            """
+            costs = [[16, 20, 12], [14, 8, 18], [26, 24, 16]]
+            supply = [200, 160, 90]
+            demand = [180, 120, 150]
+            # """
+
+            basic_variables_values = [[0 for y in x] for x in costs]
             origin_names = ["1", "2", "3"]
             destination_names = ["1", "2", "3", "4"]
 
@@ -1066,29 +1084,34 @@ class Gui(GridLayout):
                 p_col = []
                 for i in range(len(costs)):
                     if i not in e_rows:
-                        min_cost = min(costs[i])
-                        second_min_cost = min(filter(lambda x: x != min_cost, costs[i]))
-                        p_row.append(second_min_cost - min_cost)
+                        row = [math.inf if j in e_cols else costs[i][j] for j in range(len(costs[i]))]
+                        min_cost = min(row)
+                        row.remove(min_cost)
+                        second_min_cost = min(row)
+                        if math.isinf(min_cost) and math.isinf(second_min_cost):
+                            p_row.append(-math.inf)
+                        elif math.isinf(second_min_cost):
+                            p_row.append(min_cost)
+                        else:
+                            p_row.append(second_min_cost - min_cost)
                     else:
                         p_row.append(-math.inf)
 
-                for i in range(len(costs[0])):
-                    if i not in e_cols:
-                        min_cost = math.inf
-                        second_min_cost = math.inf
-                        for j in range(len(costs)):
-                            if min_cost > costs[j][i]:
-                                min_cost = costs[j][i]
-
-                        for j in range(len(costs)):
-                            if second_min_cost > costs[j][i] != min_cost:
-                                second_min_cost = costs[j][i]
-
-                        p_col.append(second_min_cost - min_cost)
+                for j in range(len(costs[0])):
+                    if j not in e_cols:
+                        col = [(costs[i][j] if i not in e_rows else math.inf) for i in range(len(costs))]
+                        min_cost = min(col)
+                        col.remove(min_cost)
+                        second_min_cost = min(col)
+                        if math.isinf(min_cost) or math.isinf(second_min_cost):
+                            p_col.append(-math.inf)
+                        elif math.isinf(second_min_cost):
+                            p_col.append(min_cost)
+                        else:
+                            p_col.append(second_min_cost - min_cost)
                     else:
                         p_col.append(-math.inf)
 
-                print("1. Penalization")
                 print("Costs: ", costs)
                 print("Demand: ", demand)
                 print("Supply: ", supply)
@@ -1098,29 +1121,29 @@ class Gui(GridLayout):
                 pc = max(p_col)
                 print("max row pen: ", pr)
                 print("max col pen: ", pc)
-                if len(e_rows) == len(e_cols) == len(costs) or pr == pc == -math.inf:
+                if not any(demand):
                     break
 
                 if pr >= pc:
                     row = p_row.index(pr)
                     c = []
-                    for i in range(len(costs[row])):
-                        if i in e_cols:
+                    for j in range(len(costs[row])):
+                        if j in e_cols:
                             c.append(math.inf)
                         else:
-                            c.append(costs[row][i])
+                            c.append(costs[row][j])
                     column = c.index(min(c))
 
                     difference = supply[row] - demand[column]
                     if difference == 0:
-                        assignment[row][column] = demand[column]
+                        basic_variables_values[row][column] = demand[column]
                         supply[row] = demand[column] = 0
                     elif difference < 0:
-                        assignment[row][column] = supply[row]
-                        demand[column] = 0
-                        supply[row] = abs(difference)
+                        basic_variables_values[row][column] = supply[row]
+                        demand[column] = abs(difference)
+                        supply[row] = 0
                     else:
-                        assignment[row][column] = demand[column]
+                        basic_variables_values[row][column] = demand[column]
                         supply[row] = difference
                         demand[column] = 0
 
@@ -1130,24 +1153,24 @@ class Gui(GridLayout):
                         e_rows.append(row)
                 else:
                     column = p_col.index(pc)
-                    c = []
+                    r = []
                     for i in range(len(costs)):
                         if i in e_rows:
-                            c.append(math.inf)
+                            r.append(math.inf)
                         else:
-                            c.append(costs[i][column])
-                    row = c.index(min(c))
+                            r.append(costs[i][column])
+                    row = r.index(min(r))
                     difference = supply[row] - demand[column]
 
                     if difference == 0:
-                        assignment[row][column] = demand[column]
+                        basic_variables_values[row][column] = demand[column]
                         supply[row] = demand[column] = 0
                     elif difference < 0:
-                        assignment[row][column] = supply[row]
-                        demand[column] = 0
-                        supply[row] = abs(difference)
+                        basic_variables_values[row][column] = supply[row]
+                        demand[column] = abs(difference)
+                        supply[row] = 0
                     else:
-                        assignment[row][column] = demand[column]
+                        basic_variables_values[row][column] = demand[column]
                         supply[row] = difference
                         demand[column] = 0
 
@@ -1155,17 +1178,885 @@ class Gui(GridLayout):
                         e_cols.append(column)
                     if supply[row] == 0:
                         e_rows.append(row)
-                print("Assignment: ", assignment)
+                print("Basic variables: ", basic_variables_values)
                 print("finished rows: ", e_rows)
                 print("finished cols: ", e_cols)
+                print("*" * 30)
+
+            print("Basic variables: ", basic_variables_values)
+            print("finished rows: ", e_rows)
+            print("finished cols: ", e_cols)
+            print("*" * 30)
+
+            basic_variables = [
+                [1 if basic_variables_values[i][j] else 0 for j in range(len(basic_variables_values[i]))]
+                for i in range(len(basic_variables_values))]
 
             print("STARTING M.O.D.I")
             while True:
-                # 1. getting the values for the ui and vj
-                u = [None for x in costs]
-                v = [None for x in costs[0]]
+                # 1. Calculating ui and vj
+                u = [None for x in basic_variables]
+                v = [None for x in basic_variables[0]]
+
+                u_p = [x.count(1) for x in basic_variables]
+                v_p = [x.count(1) for x in [[basic_variables[i][j] for i in range(len(basic_variables))]
+                                          for j in range(len(basic_variables[0]))]]
+
+                if max(u_p) > max(v_p):
+                    u[u_p.index(max(u_p))] = 0
+                else:
+                    v[v_p.index(max(v_p))] = 0
+
                 while True:
-                    pass
+                    for i in range(len(basic_variables)):
+                        for j in range(len(basic_variables[i])):
+                            if basic_variables[i][j]:
+                                if (u[i] is not None) and (v[j] is None):
+                                    v[j] = costs[i][j] - u[i]
+                                elif (v[j] is not None) and (u[i] is None):
+                                    u[i] = costs[i][j] - v[j]
+                    end = True
+                    for i in range(len(u)):
+                        if u[i] is None and any(basic_variables[i]):
+                            end = False
+                            break
+
+                    for j in range(len(v)):
+                        if v[j] is None and any([x[j] for x in basic_variables]):
+                            end = False
+                            break
+                    if end:
+                        break
+                print("U and v:")
+                print("U: ", u)
+                print("V: ", v)
+
+                new_basic_var = None
+                aux = 0
+                # Finding the entering variable
+                for i in range(len(basic_variables)):
+                    for j in range(len(basic_variables[i])):
+                        if not basic_variables[i][j] and ((costs[i][j] - (u[i] + v[j])) < aux):
+                            aux = costs[i][j] - (u[i] + v[j])
+                            new_basic_var = (i, j)
+
+                print(new_basic_var, " :", aux)
+                if new_basic_var is None:  # Optimal solution found!
+                    break
+
+                # Drawing a closed path for the entering variable
+                path = [new_basic_var]
+                steps = {new_basic_var: "N"}
+                while True:
+                    if not path:
+                        print("NO CLOSED PATH")
+                        break
+
+                    if steps[path[-1]] == "N":
+                        if len(path) > 1:
+
+                            steps[(*path[-1], "L")] = []
+                            steps[(*path[-1], "U")] = []
+                            steps[(*path[-1], "D")] = []
+                            steps[(*path[-1], "R")] = []
+
+                            if steps[path[-2]] == "L" or steps[path[-2]] == "R":
+                                # ones upwards
+                                for i in reversed(range(path[-1][0])):
+                                    if (i, path[-1][1]) in path:
+                                        break
+                                    if basic_variables[i][path[-1][1]]:
+                                        steps[(*path[-1], "U")].append(i)
+
+                                # ones downwards
+                                for i in range(path[-1][0] + 1, len(basic_variables)):
+                                    if (i, path[-1][1]) in path:
+                                        break
+                                    if basic_variables[i][path[-1][1]]:
+                                        steps[(*path[-1], "D")].append(i)
+                                steps[(*path[-1], "D")] = steps[(*path[-1], "D")][::-1]
+
+                                # Stopping condition:
+                                if path[-1][1] == new_basic_var[1]:
+                                    if path[-1][0] < new_basic_var[0]:  # new basic bar is downwards
+                                        # if there aren't obstacles we're done
+                                        end = True
+                                        for i in range(path[-1][0] + 1, new_basic_var[0]):
+                                            if (i, new_basic_var[0]) in path:
+                                                end = False
+                                                break
+
+                                    else:  # new basic bar is upwards
+                                        # if there aren't obstacles we're done
+                                        end = True
+                                        for i in range(new_basic_var[0] + 1, path[-1][0]):
+                                            if (i, new_basic_var[0]) in path:
+                                                end = False
+                                                break
+                                    if end:
+                                        print("CLOSED PATH FOUND!")
+                                        break
+
+                                # Setting direction
+                                if steps[(*path[-1], "U")] and steps[(*path[-1], "D")]:
+                                    if new_basic_var[0] in steps[(*path[-1], "U")]:
+                                        steps[path[-1]] = "U"
+                                        steps[(*path[-1], "U")].remove(new_basic_var[0])
+                                        column = path[-1][1]
+                                        old_row = path[-1][0]
+                                        new_row = new_basic_var[0]
+
+                                        for i in range(new_row + 1, old_row):
+                                            path.append((i, column))
+                                            steps[path[-1]] = "U"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((new_row, column))
+                                        steps[path[-1]] = "N"
+
+                                    elif new_basic_var[0] in steps[(*path[-1], "D")]:
+                                        steps[path[-1]] = "D"
+                                        steps[(*path[-1], "D")].remove(new_basic_var[0])
+
+                                        column = path[-1][1]
+                                        old_row = path[-1][0]
+                                        new_row = new_basic_var[0]
+
+                                        for i in range(old_row + 1, new_row):
+                                            path.append((i, column))
+                                            steps[path[-1]] = "D"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((new_row, column))
+                                        steps[path[-1]] = "N"
+
+                                    else:
+                                        steps[path[-1]] = "U"
+                                        column = path[-1][1]
+                                        old_row = path[-1][0]
+                                        new_row = steps[(*path[-1], "U")].pop()
+
+                                        for i in range(new_row + 1, old_row):
+                                            path.append((i, column))
+                                            steps[path[-1]] = "U"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((new_row, column))
+                                        steps[path[-1]] = "N"
+
+                                elif steps[(*path[-1], "U")]:
+                                    if new_basic_var[0] in steps[(*path[-1], "D")]:
+                                        steps[path[-1]] = "U"
+                                        steps[(*path[-1], "U")].remove(new_basic_var[0])
+                                        column = path[-1][1]
+                                        old_row = path[-1][0]
+                                        new_row = new_basic_var[0]
+
+                                        for i in range(new_row + 1, old_row):
+                                            path.append((i, column))
+                                            steps[path[-1]] = "U"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((new_row, column))
+                                        steps[path[-1]] = "N"
+
+                                    else:
+                                        steps[path[-1]] = "U"
+                                        column = path[-1][1]
+                                        old_row = path[-1][0]
+                                        new_row = steps[(*path[-1], "U")].pop()
+
+                                        for i in range(new_row + 1, old_row):
+                                            path.append((i, column))
+                                            steps[path[-1]] = "U"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((new_row, column))
+                                        steps[path[-1]] = "N"
+
+                                elif steps[(*path[-1], "D")]:
+                                    if new_basic_var[0] in steps[(*path[-1], "D")]:
+                                        steps[path[-1]] = "D"
+                                        steps[(*path[-1], "D")].remove(new_basic_var[0])
+
+                                        column = path[-1][1]
+                                        old_row = path[-1][0]
+                                        new_row = new_basic_var[0]
+
+                                        for i in range(old_row + 1, new_row):
+                                            path.append((i, column))
+                                            steps[path[-1]] = "D"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((new_row, column))
+                                        steps[path[-1]] = "N"
+
+                                    else:
+                                        steps[path[-1]] = "D"
+
+                                        column = path[-1][1]
+                                        old_row = path[-1][0]
+                                        new_row = steps[(*path[-1], "D")].pop()
+
+                                        for i in range(old_row + 1, new_row):
+                                            path.append((i, column))
+                                            steps[path[-1]] = "D"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((new_row, column))
+                                        steps[path[-1]] = "N"
+
+                                else:
+                                    path.pop()
+                                    continue
+
+                            else:  # steps[path[-2]] == U or steps[path[-2]] == D
+                                # ones rightwards
+                                for j in range(path[-1][1] + 1, len(basic_variables[path[-1][0]])):
+                                    if (path[-1][0], j) in path:
+                                        break
+                                    if basic_variables[path[-1][0]][j]:
+                                        steps[(*path[-1], "R")].append(j)
+                                steps[(*path[-1], "R")] = steps[(*path[-1], "R")][::-1]
+
+                                # ones leftwards
+                                for j in reversed(range(path[-1][1])):
+                                    if (path[-1][0], j) in path:
+                                        break
+                                    if basic_variables[path[-1][0]][j]:
+                                        steps[(*path[-1], "L")].append(j)
+
+                                # Stopping condition
+                                if path[-1][0] == new_basic_var[0]:
+                                    if path[-1][1] > new_basic_var[1]:  # New basic var is leftwards
+                                        end = True
+                                        for j in range(new_basic_var[1] + 1, path[-1][1]):
+                                            if (path[-1][0], j) in path:
+                                                end = False
+                                                break
+                                    else:  # New basic var is rightwards
+                                        end = True
+                                        for j in range(path[-1][1] + 1, new_basic_var[1]):
+                                            if (path[-1][0], j) in path:
+                                                end = False
+                                                break
+
+                                    if end:
+                                        print("CLOSED PATH FOUND!")
+                                        break
+
+                                # Setting direction
+                                if steps[(*path[-1], "L")] and steps[(*path[-1], "R")]:
+                                    if new_basic_var[1] in steps[(*path[-1], "L")]:
+                                        steps[path[-1]] = "L"
+                                        steps[(*path[-1], "L")].remove(new_basic_var[1])
+                                        row = path[-1][0]
+                                        old_column = path[-1][1]
+                                        new_column = new_basic_var[1]
+
+                                        for j in range(new_column + 1, old_column):
+                                            path.append((row, j))
+                                            steps[path[-1]] = "L"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((row, new_column))
+                                        steps[path[-1]] = "N"
+
+                                    elif new_basic_var[1] in steps[(*path[-1], "R")]:
+                                        steps[path[-1]] = "R"
+                                        steps[(*path[-1], "R")].remove(new_basic_var[1])
+                                        row = path[-1][0]
+                                        old_column = path[-1][1]
+                                        new_column = new_basic_var[1]
+
+                                        for j in range(old_column + 1, new_column):
+                                            path.append((row, j))
+                                            steps[path[-1]] = "R"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((row, new_column))
+                                        steps[path[-1]] = "N"
+
+                                    else:
+                                        steps[path[-1]] = "L"
+                                        row = path[-1][0]
+                                        old_column = path[-1][1]
+                                        new_column = steps[(*path[-1], "L")].pop()
+
+                                        for j in range(new_column + 1, old_column):
+                                            path.append((row, j))
+                                            steps[path[-1]] = "L"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((row, new_column))
+                                        steps[path[-1]] = "N"
+
+                                elif steps[(*path[-1], "L")]:
+                                    if new_basic_var[1] in steps[(*path[-1], "L")]:
+                                        steps[path[-1]] = "L"
+                                        steps[(*path[-1], "L")].remove(new_basic_var[1])
+                                        row = path[-1][0]
+                                        old_column = path[-1][1]
+                                        new_column = new_basic_var[1]
+
+                                        for j in range(new_column + 1, old_column):
+                                            path.append((row, j))
+                                            steps[path[-1]] = "L"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((row, new_column))
+                                        steps[path[-1]] = "N"
+
+                                    else:
+                                        steps[path[-1]] = "L"
+                                        row = path[-1][0]
+                                        old_column = path[-1][1]
+                                        new_column = steps[(*path[-1], "L")].pop()
+
+                                        for j in range(new_column + 1, old_column):
+                                            path.append((row, j))
+                                            steps[path[-1]] = "L"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((row, new_column))
+                                        steps[path[-1]] = "N"
+
+                                elif steps[(*path[-1], "R")]:
+                                    if new_basic_var[1] in steps[(*path[-1], "R")]:
+                                        steps[path[-1]] = "R"
+                                        steps[(*path[-1], "R")].remove(new_basic_var[1])
+                                        row = path[-1][0]
+                                        old_column = path[-1][1]
+                                        new_column = new_basic_var[1]
+
+                                        for j in range(old_column + 1, new_column):
+                                            path.append((row, j))
+                                            steps[path[-1]] = "R"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((row, new_column))
+                                        steps[path[-1]] = "N"
+
+                                    else:
+                                        steps[path[-1]] = "R"
+                                        row = path[-1][0]
+                                        old_column = path[-1][1]
+                                        new_column = steps[(*path[-1], "R")].pop()
+
+                                        for j in range(old_column + 1, new_column):
+                                            path.append((row, j))
+                                            steps[path[-1]] = "R"
+                                            steps[(*path[-1], "L")] = []
+                                            steps[(*path[-1], "R")] = []
+                                            steps[(*path[-1], "U")] = []
+                                            steps[(*path[-1], "D")] = []
+
+                                        path.append((row, new_column))
+                                        steps[path[-1]] = "N"
+
+                                else:
+                                    path.pop()
+                                    continue
+
+                        else:  # First iter
+                            steps[(*path[-1], "L")] = []
+                            steps[(*path[-1], "U")] = []
+                            steps[(*path[-1], "D")] = []
+                            steps[(*path[-1], "R")] = []
+
+                            # ones rightwards
+                            for j in reversed(range(path[-1][1] + 1, len(basic_variables[path[-1][0]]))):
+                                if basic_variables[path[-1][0]][j]:
+                                    steps[(*path[-1], "R")].append(j)
+
+                            # ones leftwards
+                            for j in range(path[-1][1]):
+                                if basic_variables[path[-1][0]][j]:
+                                    steps[(*path[-1], "L")].append(j)
+
+                            # ones upwards
+                            for i in range(path[-1][0]):
+                                if basic_variables[i][path[-1][1]]:
+                                    steps[(*path[-1], "U")].append(i)
+
+                            # ones downwards
+                            for i in reversed(range(path[-1][0] + 1, len(basic_variables))):
+                                if basic_variables[i][path[-1][1]]:
+                                    steps[(*path[-1], "D")].append(i)
+
+                            # setting direction
+                            if steps[(*path[-1], "L")]:
+                                steps[path[-1]] = "L"
+
+                                row = path[-1][0]
+                                old_column = path[-1][1]
+                                new_column = steps[(*path[-1], "L")].pop()
+
+                                for j in range(new_column + 1, old_column):
+                                    path.append((row, j))
+                                    steps[path[-1]] = "L"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((row, new_column))
+                                steps[path[-1]] = "N"
+
+                            elif steps[(*path[-1], "U")]:
+                                steps[path[-1]] = "U"
+                                old_row = path[-1][0]
+                                new_row = steps[(*path[-1], "U")].pop()
+                                column = path[-1][1]
+
+                                for i in range(new_row + 1, old_row):
+                                    path.append((i, column))
+                                    steps[path[-1]] = "U"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((new_row, column))
+                                steps[path[-1]] = "N"
+
+                            elif steps[(*path[-1], "D")]:
+                                steps[path[-1]] = "D"
+                                old_row = path[-1][0]
+                                new_row = steps[(*path[-1], "D")].pop()
+                                column = path[-1][1]
+
+                                for i in range(old_row + 1, new_row):
+                                    path.append((i, column))
+                                    steps[path[-1]] = "D"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((new_row, column))
+                                steps[path[-1]] = "N"
+
+                            elif steps[(*path[-1], "R")]:
+                                steps[path[-1]] = "R"
+                                row = path[-1][0]
+                                old_column = path[-1][1]
+                                new_column = steps[(*path[-1], "R")].pop()
+
+                                for j in range(old_column + 1, new_column):
+                                    path.append((row, j))
+                                    steps[path[-1]] = "R"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((row, new_column))
+                                steps[path[-1]] = "N"
+
+                            else:
+                                print("NO CLOSED PATH FOUND")
+                                path.pop()
+                                break
+
+                            steps[(*path[-1], "L")] = []
+                            steps[(*path[-1], "U")] = []
+                            steps[(*path[-1], "D")] = []
+                            steps[(*path[-1], "R")] = []
+
+                    elif steps[path[-1]] == "L":
+                        if len(path) > 1:
+                            if steps[(*path[-1], "L")]:
+                                while steps[(*path[-1], "L")]:
+                                    row = path[-1][0]
+                                    old_column = path[-1][1]
+                                    new_column = steps[(*path[-1], "L")].pop()
+
+                                    for j in range(new_column, old_column):
+                                        if (row, j) in path:
+                                            break
+                                    else:
+                                        break
+                                else:
+                                    if steps[(*path[-1], "R")]:
+                                        steps[path[-1]] = "R"
+                                    else:
+                                        steps[path[-1]] = "F"
+                                    continue
+
+                                for j in range(new_column + 1, old_column):
+                                    path.append((row, j))
+                                    steps[path[-1]] = "L"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((row, new_column))
+                                steps[path[-1]] = "N"
+                            else:
+                                if steps[(*path[-1], "R")]:
+                                    steps[path[-1]] = "R"
+                                else:
+                                    steps[path[-1]] = "F"
+                        else:
+                            if steps[(*path[-1], "L")]:
+                                while steps[(*path[-1], "L")]:
+                                    row = path[-1][0]
+                                    old_column = path[-1][1]
+                                    new_column = steps[(*path[-1], "L")].pop()
+
+                                    for j in range(new_column, old_column):
+                                        if (row, j) in path:
+                                            break
+                                    else:
+                                        break
+                                else:
+                                    if steps[(*path[-1], "U")]:
+                                        steps[path[-1]] = "U"
+                                    elif steps[(*path[-1], "D")]:
+                                        steps[path[-1]] = "D"
+                                    elif steps[(*path[-1], "R")]:
+                                        steps[path[-1]] = "R"
+                                    else:
+                                        steps[path[-1]] = "F"
+                                    continue
+
+                                for j in range(new_column + 1, old_column):
+                                    path.append((row, j))
+                                    steps[path[-1]] = "L"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((row, new_column))
+                                steps[path[-1]] = "N"
+                            elif steps[(*path[-1], "U")]:
+                                steps[path[-1]] = "U"
+                            elif steps[(*path[-1], "D")]:
+                                steps[path[-1]] = "D"
+                            elif steps[(*path[-1], "R")]:
+                                steps[path[-1]] = "R"
+                            else:
+                                steps[path[-1]] = "F"
+
+                    elif steps[path[-1]] == "U":
+                        if len(path) > 1:
+                            if steps[(*path[-1], "U")]:
+                                while steps[(*path[-1], "U")]:
+                                    column = path[-1][1]
+                                    old_row = path[-1][0]
+                                    new_row = steps[(*path[-1], "U")].pop()
+
+                                    for i in range(new_row, old_row):
+                                        if (i, column) in path:
+                                            break
+                                    else:
+                                        break
+                                else:
+                                    if steps[(*path[-1], "D")]:
+                                        steps[path[-1]] = "D"
+                                    else:
+                                        steps[path[-1]] = "F"
+                                    continue
+
+                                for i in range(new_row + 1, old_row):
+                                    path.append((i, column))
+                                    steps[path[-1]] = "U"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((new_row, column))
+                                steps[path[-1]] = "N"
+                            else:
+                                if steps[(*path[-1], "D")]:
+                                    steps[path[-1]] = "D"
+                                else:
+                                    steps[path[-1]] = "F"
+                        else:
+                            if steps[(*path[-1], "U")]:
+                                while steps[(*path[-1], "U")]:
+                                    column = path[-1][1]
+                                    old_row = path[-1][0]
+                                    new_row = steps[(*path[-1], "U")].pop()
+
+                                    for i in range(new_row, old_row):
+                                        if (i, column) in path:
+                                            break
+                                    else:
+                                        break
+                                else:
+                                    if steps[(*path[-1], "D")]:
+                                        steps[path[-1]] = "D"
+                                    elif steps[(*path[-1], "L")]:
+                                        steps[path[-1]] = "L"
+                                    elif steps[(*path[-1], "R")]:
+                                        steps[path[-1]] = "R"
+                                    else:
+                                        steps[path[-1]] = "F"
+                                    continue
+
+                                for i in range(new_row + 1, old_row):
+                                    path.append((i, column))
+                                    steps[path[-1]] = "U"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((new_row, column))
+                                steps[path[-1]] = "N"
+                            elif steps[(*path[-1], "D")]:
+                                steps[path[-1]] = "D"
+                            elif steps[(*path[-1], "L")]:
+                                steps[path[-1]] = "L"
+                            elif steps[(*path[-1], "R")]:
+                                steps[path[-1]] = "R"
+                            else:
+                                steps[path[-1]] = "F"
+
+                    elif steps[path[-1]] == "D":
+                        if len(path) > 1:
+                            if steps[(*path[-1], "D")]:
+                                while steps[(*path[-1], "D")]:
+                                    column = path[-1][1]
+                                    old_row = path[-1][0]
+                                    new_row = steps[(*path[-1], "D")].pop()
+
+                                    for i in range(new_row, old_row, -1):
+                                        if (i, column) in path:
+                                            break
+                                    else:
+                                        break
+                                else:
+                                    if steps[(*path[-1], "U")]:
+                                        steps[path[-1]] = "U"
+                                    else:
+                                        steps[path[-1]] = "F"
+                                    continue
+
+                                for i in range(old_row + 1, new_row):
+                                    path.append((i, column))
+                                    steps[path[-1]] = "D"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((new_row, column))
+                                steps[path[-1]] = "N"
+                            else:
+                                if steps[(*path[-1], "U")]:
+                                    steps[path[-1]] = "U"
+                                else:
+                                    steps[path[-1]] = "F"
+                        else:
+                            if steps[(*path[-1], "D")]:
+                                while steps[(*path[-1], "D")]:
+                                    column = path[-1][1]
+                                    old_row = path[-1][0]
+                                    new_row = steps[(*path[-1], "D")].pop()
+
+                                    for i in range(new_row, old_row, -1):
+                                        if (i, column) in path:
+                                            break
+                                    else:
+                                        break
+                                else:
+                                    if steps[(*path[-1], "U")]:
+                                        steps[path[-1]] = "U"
+                                    elif steps[(*path[-1], "L")]:
+                                        steps[path[-1]] = "L"
+                                    elif steps[(*path[-1], "R")]:
+                                        steps[path[-1]] = "R"
+                                    else:
+                                        steps[path[-1]] = "F"
+                                    continue
+
+                                for i in range(old_row + 1, new_row):
+                                    path.append((i, column))
+                                    steps[path[-1]] = "D"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((new_row, column))
+                                steps[path[-1]] = "N"
+                            elif steps[(*path[-1], "L")]:
+                                steps[path[-1]] = "L"
+                            elif steps[(*path[-1], "U")]:
+                                steps[path[-1]] = "U"
+                            elif steps[(*path[-1], "R")]:
+                                steps[path[-1]] = "R"
+                            else:
+                                steps[path[-1]] = "F"
+
+                    elif steps[path[-1]] == "R":
+                        if len(path) > 1:
+                            if steps[(*path[-1], "R")]:
+                                while steps[(*path[-1], "R")]:
+                                    row = path[-1][0]
+                                    old_column = path[-1][1]
+                                    new_column = steps[(*path[-1], "R")].pop()
+                                    for j in range(old_column + 1, new_column):
+                                        if (row, j) in path:
+                                            break
+                                    else:
+                                        break
+                                else:
+                                    if steps[(*path[-1], "L")]:
+                                        steps[path[-1]] = "L"
+                                    else:
+                                        steps[path[-1]] = "F"
+                                    continue
+
+                                for j in range(old_column + 1, new_column):
+                                    path.append((row, j))
+                                    steps[path[-1]] = "R"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((row, new_column))
+                                steps[path[-1]] = "N"
+                            else:
+                                if steps[(*path[-1], "L")]:
+                                    steps[path[-1]] = "L"
+                                else:
+                                    steps[path[-1]] = "F"
+                        else:
+                            if steps[(*path[-1], "R")]:
+                                while steps[(*path[-1], "R")]:
+                                    row = path[-1][0]
+                                    old_column = path[-1][1]
+                                    new_column = steps[(*path[-1], "R")].pop()
+                                    for j in range(old_column + 1, new_column):
+                                        if (row, j) in path:
+                                            break
+                                    else:
+                                        break
+                                else:
+                                    if steps[(*path[-1], "L")]:
+                                        steps[path[-1]] = "L"
+                                    elif steps[(*path[-1], "U")]:
+                                        steps[path[-1]] = "U"
+                                    elif steps[(*path[-1], "D")]:
+                                        steps[path[-1]] = "D"
+                                    else:
+                                        steps[path[-1]] = "F"
+                                    continue
+
+                                for j in range(old_column + 1, new_column):
+                                    path.append((row, j))
+                                    steps[path[-1]] = "R"
+                                    steps[(*path[-1], "L")] = []
+                                    steps[(*path[-1], "U")] = []
+                                    steps[(*path[-1], "D")] = []
+                                    steps[(*path[-1], "R")] = []
+
+                                path.append((row, new_column))
+                                steps[path[-1]] = "N"
+                            elif steps[(*path[-1], "L")]:
+                                steps[path[-1]] = "L"
+                            elif steps[(*path[-1], "U")]:
+                                steps[path[-1]] = "U"
+                            elif steps[(*path[-1], "D")]:
+                                steps[path[-1]] = "D"
+                            else:
+                                steps[path[-1]] = "F"
+
+                    else:  # F
+                        path.pop()
+
+                # """
+                if path:
+                    # Taking the borders of the path
+                    borders = [path[0]]
+                    dir = steps[path[0]]
+                    for x in path:
+                        if steps[x] != dir:
+                            borders.append(x)
+                            dir = steps[x]
+
+                    print("Borders: ", borders)
+                    signs = ["+" if i % 2 == 0 else "-" for i in range(len(borders))]
+                    print("Signs: ", signs)
+                    # """
+                else:
+                    break
+
+                # Finding the leaving variable
+                min_negative_cell_v = math.inf
+                for x in borders:
+                    if basic_variables_values[x[0]][x[1]] > 0 < min_negative_cell_v:
+                        min_negative_cell_v = basic_variables_values[x[0]][x[1]]
+                print(basic_variables_values)
+                print("Min neg cell:", min_negative_cell_v)
+
+                for i in range(len(borders)):
+                    if signs[i] == "+":
+                        if not basic_variables[borders[i][0]][borders[i][1]]:
+                            basic_variables[borders[i][0]][borders[i][1]] = 1
+                        basic_variables_values[borders[i][0]][borders[i][1]] += min_negative_cell_v
+                    else:
+                        basic_variables_values[borders[i][0]][borders[i][1]] -= min_negative_cell_v
+                        if not basic_variables_values[borders[i][0]][borders[i][1]]:
+                            basic_variables[borders[i][0]][borders[i][1]] = 0
+
+            print("Optimal solution:")
+            print("Minimum transportation cost = ", end="")
+            minimum_transportation_cost = 0
+            for i in range(len(basic_variables_values)):
+                for j in range(len(basic_variables_values[i])):
+                    if basic_variables_values[i][j]:
+                        minimum_transportation_cost += costs[i][j] * basic_variables_values[i][j]
+                        print(costs[i][j], "*", basic_variables_values[i][j],
+                              "+" if j != (len(basic_variables_values) - 1) else "", end="")
+            print("= ", minimum_transportation_cost)
 
     def show_save_png(self, btn):
         content = SaveDialog(save=lambda path, filename: self.save_png(btn, path, filename), dismiss=self.dismiss_popup)
